@@ -43,10 +43,7 @@ At minimum, include:
 
 `main` is protected. A PR targeting `main` must pass these checks before merge:
 
-- `CI / quality`
 - `Dependency Review / review`
-- `CodeQL / analyze`
-- `Secret Scan / gitleaks`
 - `Supply Chain / filesystem-sbom`
 - `Supply Chain / container-policy`
 
@@ -57,6 +54,11 @@ Required repository policy on `main`:
 - admins are not exempt from the protection rule
 
 LifeOS is currently solo-maintained, so the merge gate is enforced by required checks rather than a mandatory human approval count.
+
+Other CI checks still run, but they are not merge gates yet because they depend on separate hardening work:
+
+- `CI / quality`
+- `Secret Scan / gitleaks`
 
 If the branch protection state changes, update this document and the hardening program together.
 
