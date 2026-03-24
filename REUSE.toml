@@ -5,6 +5,7 @@ path = [
   ".claude/**",
   ".editorconfig",
   ".env.example",
+  ".env.schema",
   ".gitattributes",
   ".github/**",
   ".gitignore",

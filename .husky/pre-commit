@@ -17,11 +17,11 @@ git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
   [ -n "$file" ] || continue
 
   case "$file" in
-    .env.example|.gitleaks.toml|.husky/*)
+    .env.example|.env.schema|.gitleaks.toml|.husky/*)
       continue
       ;;
     .env|.env.*)
-      if [ "$file" != ".env.example" ]; then
+      if [ "$file" != ".env.example" ] && [ "$file" != ".env.schema" ]; then
         printf '%s\n' "ERROR: .env file staged for commit: $file" >>"$report_file"
       fi
       continue
