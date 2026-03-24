@@ -52,10 +52,11 @@ At minimum, include:
 
 Required repository policy on `main`:
 
-- at least one approving review
 - stale approvals dismissed on new commits
 - branches must be up to date before merge
 - admins are not exempt from the protection rule
+
+LifeOS is currently solo-maintained, so the merge gate is enforced by required checks rather than a mandatory human approval count.
 
 If the branch protection state changes, update this document and the hardening program together.
 
