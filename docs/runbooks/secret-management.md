@@ -30,7 +30,9 @@ The current template includes:
 - `INFISICAL_CLIENT_ID`
 - `INFISICAL_CLIENT_SECRET`
 - `PORT`
+- `WEB_ORIGIN`
 - `AUTH_ISSUER`
+- `BETTER_AUTH_SECRET`
 - `CONVEX_APPLICATION_ID`
 - `CONVEX_DEPLOYMENT`
 - `CONVEX_URL`
@@ -43,6 +45,7 @@ The current template includes:
 
 - machine-identity values belong in your untracked local env file or deployment environment variables
 - server and Convex secrets belong in Infisical
+- auth database paths and local web origins are safe local defaults, not secrets
 - local bridge secrets should live in the OS secret store when possible
 - if a key or secret must be backed up, export it encrypted and store it outside the repo
 
