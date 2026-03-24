@@ -45,7 +45,6 @@ At minimum, include:
 
 - `ci-quality`
 - `dependency-review`
-- `codeql-analyze`
 - `secret-scan`
 - `supply-chain-filesystem-sbom`
 - `supply-chain-container-policy`
