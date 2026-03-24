@@ -12,14 +12,14 @@
   },
   "dependencies": {
     "@lifeos/logging": "workspace:*",
-    "@hono/node-server": "1.13.8",
-    "hono": "4.7.10",
+    "@hono/node-server": "1.19.11",
+    "hono": "4.12.9",
     "varlock": "0.6.3"
   },
   "devDependencies": {
-    "@types/node": "24.0.1",
-    "tsx": "4.19.4",
-    "typescript": "5.9.2",
+    "@types/node": "25.5.0",
+    "tsx": "4.21.0",
+    "typescript": "6.0.2",
     "vitest": "4.1.1"
   }
 }
