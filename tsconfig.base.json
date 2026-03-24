@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@lifeos/logging": ["packages/logging/src/index.ts"],
       "@lifeos/security": ["packages/security/src/index.ts"],
       "@lifeos/testing": ["packages/testing/src/index.ts"]
     },

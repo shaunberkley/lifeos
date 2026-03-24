@@ -1,0 +1,55 @@
+name: Work item
+description: Use for docs, hardening, bugs, or feature work that needs a scoped issue.
+labels: []
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      description: Classify the work at a high level.
+      options:
+        - hardening
+        - docs
+        - bug
+        - feature
+        - research
+    validations:
+      required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: State the change in one or two sentences.
+      placeholder: What should change and why?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: List the files, directories, or surfaces that are in scope.
+      placeholder: Allowed write scope only.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Define what must be true before the issue can close.
+      placeholder: Concrete, testable exit criteria.
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation
+      description: List the commands or manual checks required for evidence.
+      placeholder: Commands, screenshots, logs, or transcripts.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Add risks, non-goals, or links to related issues.
+      placeholder: Keep this short.

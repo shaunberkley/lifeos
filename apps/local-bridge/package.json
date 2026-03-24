@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
+    "healthcheck": "tsx src/healthcheck.ts",
     "lint": "biome check src",
     "start": "tsx src/main.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@lifeos/logging": "workspace:*",
     "@lifeos/security": "workspace:*"
   },
   "devDependencies": {

@@ -14,15 +14,17 @@
     "prepare": "git config --local core.hooksPath .husky",
     "typecheck": "turbo run typecheck",
     "test": "pnpm exec vitest run convex/*.test.ts && turbo run test",
+    "test:coverage": "pnpm exec vitest run --coverage",
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@playwright/test": "1.52.0",
     "@types/node": "24.0.0",
+    "@vitest/coverage-v8": "4.1.1",
     "convex": "1.24.0",
     "turbo": "2.5.0",
     "typescript": "5.9.2",
-    "vitest": "4.0.0"
+    "vitest": "4.1.1"
   }
 }

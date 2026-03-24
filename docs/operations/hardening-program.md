@@ -29,6 +29,10 @@ Every human and AI contributor should read these files first:
 - `docs/data-classification.md`
 - `docs/operations/hardening-program.md`
 - `docs/architecture/implementation-roadmap.md`
+- `docs/runbooks/self-host-bootstrap.md`
+- `docs/runbooks/health-checks.md`
+- `docs/runbooks/secret-management.md`
+- `docs/runbooks/backup-restore.md`
 
 ## Tracking Model
 

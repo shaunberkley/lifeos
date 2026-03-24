@@ -41,5 +41,5 @@ jobs:
         if: hashFiles('convex/schema.ts') != ''
         run: pnpm exec convex typecheck
 
-      - name: Run tests
-        run: pnpm test
+      - name: Run tests with coverage
+        run: pnpm test:coverage

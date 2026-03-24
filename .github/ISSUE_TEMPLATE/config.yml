@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security disclosure
+    url: https://github.com/shaunberkley/lifeos/blob/main/SECURITY.md
+    about: Report a vulnerability privately using the repository security policy.
+  - name: LifeOS docs
+    url: https://github.com/shaunberkley/lifeos/blob/main/docs/overview/what-is-lifeos.md
+    about: Read the canonical product and architecture overview before filing a new work item.

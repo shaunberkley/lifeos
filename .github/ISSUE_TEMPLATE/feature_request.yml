@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose a scoped change with clear user and architecture impact.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user or operator problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the intended behavior, not implementation theater.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Call out privacy, local-processing, OSS, or self-hosting constraints.

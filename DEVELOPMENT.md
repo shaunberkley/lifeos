@@ -29,6 +29,12 @@ Use `.env.example` as the source of truth for required local variables.
 
 Do not commit secrets. Restricted or private data should stay local unless the architecture says otherwise.
 
+## Self-Hosting
+
+The supported bootstrap path is documented in [docs/runbooks/self-host-bootstrap.md](./docs/runbooks/self-host-bootstrap.md).
+
+Use [docs/runbooks/health-checks.md](./docs/runbooks/health-checks.md) to verify service readiness, and keep secret handling aligned with [docs/runbooks/secret-management.md](./docs/runbooks/secret-management.md).
+
 ## Repo Layout
 
 - `apps/web` - React frontend

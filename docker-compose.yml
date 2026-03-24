@@ -1,0 +1,38 @@
+services:
+  server:
+    image: node:24-bookworm-slim
+    init: true
+    working_dir: /workspace
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    env_file:
+      - .env
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/workspace
+      - lifeos-node_modules:/workspace/node_modules
+      - lifeos-pnpm-store:/pnpm-store
+      - lifeos-data:/workspace/data
+    command: >
+      sh -lc "corepack enable
+      && corepack prepare pnpm@10.6.5 --activate
+      && pnpm config set store-dir /pnpm-store
+      && pnpm install --frozen-lockfile
+      && pnpm --filter @lifeos/server start"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node --input-type=module -e "const response = await fetch('http://127.0.0.1:3000/health'); if (!response.ok) process.exit(1);"
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  lifeos-node_modules:
+  lifeos-pnpm-store:
+  lifeos-data:
