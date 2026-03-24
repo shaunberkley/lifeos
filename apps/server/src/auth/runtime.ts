@@ -44,10 +44,6 @@ async function createAuthRuntime(): Promise<AuthRuntime> {
       db: database,
       type: "sqlite",
     },
-    emailAndPassword: {
-      enabled: true,
-      requireEmailVerification: false,
-    },
     plugins: [
       jwt({
         jwks: {
@@ -108,7 +104,10 @@ async function createAuthRuntime(): Promise<AuthRuntime> {
 }
 
 export async function getAuthRuntime(): Promise<AuthRuntime> {
-  authRuntimePromise ??= createAuthRuntime();
+  authRuntimePromise ??= createAuthRuntime().catch((error) => {
+    authRuntimePromise = undefined;
+    throw error;
+  });
   return authRuntimePromise;
 }
 

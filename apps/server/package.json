@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "24.0.1",
+    "jose": "6.2.2",
     "tsx": "4.19.4",
     "typescript": "5.9.2",
     "vitest": "4.1.1"
