@@ -68,13 +68,13 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: 1.19.10
-        version: 1.19.10(hono@4.7.10)
+        version: 1.19.10(hono@4.12.7)
       '@lifeos/logging':
         specifier: workspace:*
         version: link:../../packages/logging
       hono:
-        specifier: 4.7.10
-        version: 4.7.10
+        specifier: 4.12.7
+        version: 4.12.7
       varlock:
         specifier: 0.6.3
         version: 0.6.3
@@ -944,8 +944,8 @@ packages:
     resolution: {integrity: sha512-EykJT/Q1KjTWctppgIAgfSO0tKVuZUjhgMr17kqTumMl6Afv3EISleU7qZUzoXDFTAHTDC4NOoG/ZxU3EvlMPQ==}
     engines: {node: '>=8'}
 
-  hono@4.7.10:
-    resolution: {integrity: sha512-QkACju9MiN59CKSY5JsGZCYmPZkA6sIW6OFCUp7qDjZu6S6KHtJHhAc9Uy9mV9F8PJ1/HQ3ybZF2yjCa/73fvQ==}
+  hono@4.12.7:
+    resolution: {integrity: sha512-jq9l1DM0zVIvsm3lv9Nw9nlJnMNPOcAtsbsgiUhWcFzPE99Gvo6yRTlszSLLYacMeQ6quHD6hMfId8crVHvexw==}
     engines: {node: '>=16.9.0'}
 
   html-escaper@2.0.2:
@@ -1601,9 +1601,9 @@ snapshots:
   '@esbuild/win32-x64@0.27.4':
     optional: true
 
-  '@hono/node-server@1.19.10(hono@4.7.10)':
+  '@hono/node-server@1.19.10(hono@4.12.7)':
     dependencies:
-      hono: 4.7.10
+      hono: 4.12.7
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -1962,7 +1962,7 @@ snapshots:
 
   has-flag@4.0.0: {}
 
-  hono@4.7.10: {}
+  hono@4.12.7: {}
 
   html-escaper@2.0.2: {}
 
