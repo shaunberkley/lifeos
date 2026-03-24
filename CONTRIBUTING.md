@@ -39,6 +39,26 @@ At minimum, include:
 - how it was validated
 - any remaining follow-up
 
+## Branch Protection
+
+`main` is protected. A PR targeting `main` must pass these checks before merge:
+
+- `CI / quality`
+- `Dependency Review / review`
+- `CodeQL / analyze`
+- `Secret Scan / gitleaks`
+- `Supply Chain / filesystem-sbom`
+- `Supply Chain / container-policy`
+
+Required repository policy on `main`:
+
+- at least one approving review
+- stale approvals dismissed on new commits
+- branches must be up to date before merge
+- admins are not exempt from the protection rule
+
+If the branch protection state changes, update this document and the hardening program together.
+
 ## Commit Messages
 
 Use clear, conventional commit messages. The baseline first commit is reserved for `initial commit`.
