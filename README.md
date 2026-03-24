@@ -48,6 +48,7 @@ Foundation scaffolding is in progress. The current repo contains:
 - [Technical Architecture](./docs/architecture/lifeos-technical-architecture.md)
 - [Implementation Roadmap](./docs/architecture/implementation-roadmap.md)
 - [Hardening Program](./docs/operations/hardening-program.md)
+- [Manual PR Review Workflow](./docs/operations/manual-pr-review.md)
 - [Infisical + Varlock Setup](./docs/runbooks/infisical-varlock-setup.md)
 - [Convex Agent Access](./docs/runbooks/convex-agent-access.md)
 - [Self-Host Bootstrap](./docs/runbooks/self-host-bootstrap.md)
