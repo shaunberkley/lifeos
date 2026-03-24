@@ -18,6 +18,10 @@ path = [
   "CONTRIBUTING.md",
   "CODE_OF_CONDUCT.md",
   "DEVELOPMENT.md",
+  "lifeos-architecture-plan.md",
+  "lifeos-master-plan.md",
+  "llms-full.txt",
+  "llms.txt",
   "biome.json",
   "docker-compose.yml",
   "package.json",
@@ -25,12 +29,14 @@ path = [
   "pnpm-workspace.yaml",
   "playwright.config.ts",
   "turbo.json",
+  "tsconfig.json",
   "tsconfig.base.json",
   "vitest.config.ts",
   "apps/**",
   "convex/**",
   "docs/**",
   "packages/**",
+  "tools/**",
 ]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Shaun Berkley"
