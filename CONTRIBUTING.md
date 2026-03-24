@@ -39,6 +39,28 @@ At minimum, include:
 - how it was validated
 - any remaining follow-up
 
+## Branch Protection
+
+`main` is protected. A PR targeting `main` must pass these checks before merge:
+
+- `ci-quality`
+- `dependency-review`
+- `secret-scan`
+- `supply-chain-filesystem-sbom`
+- `supply-chain-container-policy`
+- `scorecard-analysis`
+- `reuse-lint`
+
+Required repository policy on `main`:
+
+- stale approvals dismissed on new commits
+- branches must be up to date before merge
+- admins are not exempt from the protection rule
+
+LifeOS is currently solo-maintained, so the merge gate is enforced by required checks rather than a mandatory human approval count.
+
+If the branch protection state changes, update this document and the hardening program together.
+
 ## Commit Messages
 
 Use clear, conventional commit messages. The baseline first commit is reserved for `initial commit`.
