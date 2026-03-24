@@ -22,7 +22,10 @@ function createQueryCtx(tables: InMemoryTables) {
 }
 
 const runtimeSummaryHandler = runtimeSummary as typeof runtimeSummary & {
-  _handler: (ctx: ReturnType<typeof createQueryCtx>, args: {}) => Promise<{
+  _handler: (
+    ctx: ReturnType<typeof createQueryCtx>,
+    args: Record<string, never>,
+  ) => Promise<{
     connectionCount: number;
     sourceEventCount: number;
     workspaceCount: number;

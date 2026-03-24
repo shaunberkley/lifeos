@@ -1,7 +1,36 @@
-export type Brand<T, B extends string> = T & { readonly __brand: B };
-
-export type WorkspaceId = Brand<string, "WorkspaceId">;
-export type ConnectionId = Brand<string, "ConnectionId">;
-export type SourceEventId = Brand<string, "SourceEventId">;
-
-export type DataClass = "public" | "private" | "restricted" | "derived";
+export type { Brand, ConnectionId, DataClass, SourceEventId, WorkspaceId } from "./primitives";
+export type {
+  ReviewArtifactId,
+  ReviewArtifactKind,
+  ReviewArtifactRecord,
+  ReviewCommentId,
+  ReviewCommentRecord,
+  ReviewCommentVisibility,
+  ReviewFindingId,
+  ReviewFindingRecord,
+  ReviewFindingSeverity,
+  ReviewFindingStatus,
+  ReviewJobId,
+  ReviewJobRecord,
+  ReviewJobStatus,
+  ReviewPolicyId,
+  ReviewPolicyMode,
+  ReviewPolicyRecord,
+  ReviewPolicyScopeKind,
+  ReviewProviderId,
+  ReviewProviderKind,
+  ReviewProviderRecord,
+  ReviewProviderStatus,
+  ReviewRunId,
+  ReviewRunRecord,
+  ReviewRunStatus,
+  ReviewTargetKind,
+  ReviewerIdentityId,
+  ReviewerIdentityKind,
+  ReviewerIdentityRecord,
+  ReviewerIdentityStatus,
+} from "./review";
+export {
+  isTerminalReviewJobStatus,
+  isTerminalReviewRunStatus,
+} from "./review";

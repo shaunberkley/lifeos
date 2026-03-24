@@ -7,8 +7,8 @@ describe("convex auth config", () => {
   });
 
   it("requires Convex auth issuer and application ID", async () => {
-    delete process.env.AUTH_ISSUER;
-    delete process.env.CONVEX_APPLICATION_ID;
+    Reflect.deleteProperty(process.env, "AUTH_ISSUER");
+    Reflect.deleteProperty(process.env, "CONVEX_APPLICATION_ID");
 
     await expect(import("./auth.config")).rejects.toThrow(
       "Missing required Convex auth environment variable: AUTH_ISSUER",

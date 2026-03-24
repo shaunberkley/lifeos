@@ -1,10 +1,29 @@
-export type ModelClass = "local" | "remote";
-
-export function assertModelAllowed(
-  dataClass: "public" | "private" | "restricted" | "derived",
-  modelClass: ModelClass,
-) {
-  if (dataClass === "restricted" && modelClass !== "local") {
-    throw new Error("Restricted data must stay on local models");
-  }
-}
+export {
+  ModelPolicyError,
+  ReviewProviderResolutionError,
+  assertModelAllowed,
+  getMissingCapabilities,
+  providerSupportsCapabilities,
+  resolveRequestedModelClass,
+  resolveReviewProvider,
+} from "./policy";
+export { createClaudePlaceholderAdapter, type ClaudePlaceholderAdapter } from "./providers/claude";
+export { createCodexReviewAdapter, type CodexCliReviewAdapter } from "./providers/codex";
+export type {
+  CliInvocation,
+  DataClass,
+  LocalOssProvider,
+  ModelClass,
+  PlaceholderInvocation,
+  ReviewCapability,
+  ReviewProviderAdapter,
+  ReviewProviderDescriptor,
+  ReviewProviderFamily,
+  ReviewProviderId,
+  ReviewProviderInvocation,
+  ReviewProviderRequest,
+  ReviewProviderSelection,
+  ReviewProviderStatus,
+  ReviewResolutionRequest,
+  ReviewTarget,
+} from "./types";

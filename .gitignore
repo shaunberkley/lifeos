@@ -14,6 +14,7 @@ convex/_generated/
 coverage/
 playwright-report/
 test-results/
+.codex/
 
 # Environment variables (NEVER commit secrets)
 .env

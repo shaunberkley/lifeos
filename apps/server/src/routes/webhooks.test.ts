@@ -4,7 +4,7 @@ import { webhooksRoute } from "./webhooks";
 
 describe("webhook route", () => {
   it("fails closed with not implemented", async () => {
-    const response = await webhooksRoute.request("http://lifeos.test/webhooks", {
+    const response = await webhooksRoute.request("http://lifeos.test/", {
       method: "POST",
       headers: {
         "x-correlation-id": "req-hook-1",

@@ -1,16 +1,24 @@
-import type { AuthConfig } from "convex/server";
+type ConvexAuthConfig = {
+  providers: Array<{
+    type: "customJwt";
+    issuer: string;
+    jwks: string;
+    algorithm: "ES256";
+    applicationID: string;
+  }>;
+};
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
 
-  if (!value) {
+  if (!value || value === "undefined" || value === "null") {
     throw new Error(`Missing required Convex auth environment variable: ${name}`);
   }
 
   return value;
 }
 
-export function getConvexAuthConfig(): AuthConfig {
+export function getConvexAuthConfig(): ConvexAuthConfig {
   const issuer = requireEnv("AUTH_ISSUER");
   const applicationID = requireEnv("CONVEX_APPLICATION_ID");
 
@@ -24,7 +32,7 @@ export function getConvexAuthConfig(): AuthConfig {
         applicationID,
       },
     ],
-  } satisfies AuthConfig;
+  } satisfies ConvexAuthConfig;
 }
 
 export const convexAuthConfig = getConvexAuthConfig();
