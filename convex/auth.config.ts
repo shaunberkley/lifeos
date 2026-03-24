@@ -1,15 +1,32 @@
 import type { AuthConfig } from "convex/server";
 
-export const disabledAuthConfig = {
-  providers: [
-    {
-      type: "customJwt",
-      issuer: "https://auth.lifeos.invalid",
-      jwks: "https://auth.lifeos.invalid/.well-known/jwks.json",
-      algorithm: "ES256",
-      applicationID: "lifeos-disabled",
-    },
-  ],
-} satisfies AuthConfig;
+function requireEnv(name: string): string {
+  const value = process.env[name]?.trim();
 
-export default disabledAuthConfig;
+  if (!value) {
+    throw new Error(`Missing required Convex auth environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+export function getConvexAuthConfig(): AuthConfig {
+  const issuer = requireEnv("AUTH_ISSUER");
+  const applicationID = requireEnv("CONVEX_APPLICATION_ID");
+
+  return {
+    providers: [
+      {
+        type: "customJwt",
+        issuer,
+        jwks: `${issuer}/auth/.well-known/jwks.json`,
+        algorithm: "ES256",
+        applicationID,
+      },
+    ],
+  } satisfies AuthConfig;
+}
+
+export const convexAuthConfig = getConvexAuthConfig();
+
+export default convexAuthConfig;

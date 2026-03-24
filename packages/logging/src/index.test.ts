@@ -5,6 +5,7 @@ import {
   NotImplementedAppError,
   createLogger,
   getCorrelationId,
+  mergeLogContext,
   serializeError,
   toErrorResponse,
 } from "./index";
@@ -89,5 +90,64 @@ describe("@lifeos/logging", () => {
       message: "Webhook ingress is disabled",
       correlationId: "req-123",
     });
+  });
+
+  it("covers context merging and correlation id fallbacks", () => {
+    expect(mergeLogContext({}, undefined)).toBeUndefined();
+    expect(mergeLogContext({ correlationId: "req-1" }, undefined)).toEqual({
+      correlationId: "req-1",
+    });
+    expect(
+      mergeLogContext(
+        { correlationId: "req-1", route: "/auth" },
+        { route: "/health", method: "GET" },
+      ),
+    ).toEqual({
+      correlationId: "req-1",
+      route: "/health",
+      method: "GET",
+    });
+    expect(getCorrelationId("   ", () => "generated-id")).toBe("generated-id");
+    expect(getCorrelationId(" req-keep ")).toBe("req-keep");
+  });
+
+  it("serializes unexpected errors and omits missing correlation ids", () => {
+    expect(serializeError(new Error("boom"))).toEqual({
+      name: "Error",
+      code: "unexpected_error",
+      message: "boom",
+      status: 500,
+    });
+    expect(serializeError(42)).toEqual({
+      name: "UnknownError",
+      code: "unexpected_error",
+      message: "An unknown error was thrown.",
+      status: 500,
+      details: { value: 42 },
+    });
+    expect(toErrorResponse(new Error("boom"))).toEqual({
+      ok: false,
+      error: "unexpected_error",
+      message: "boom",
+    });
+  });
+
+  it("uses the default sink for stdout and stderr levels", () => {
+    const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    const logger = createLogger({
+      service: "lifeos-server",
+      now: () => "2026-03-24T12:00:00.000Z",
+    });
+
+    logger.info("request started");
+    logger.error("request failed");
+
+    expect(stdoutWrite).toHaveBeenCalledTimes(1);
+    expect(stderrWrite).toHaveBeenCalledTimes(1);
+
+    stdoutWrite.mockRestore();
+    stderrWrite.mockRestore();
   });
 });

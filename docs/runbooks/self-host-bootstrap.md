@@ -6,8 +6,9 @@ The baseline is intentionally small:
 
 - `docker-compose.yml` runs the Hono server
 - the server exposes `/health`
+- the server exposes Better Auth and JWKS under `/auth/*`
 - restricted-data processing stays on the local bridge and is not forced into the compose stack
-- auth and webhook ingress fail closed until the later identity and integration work lands
+- webhook ingress still fails closed until signed event handling lands
 
 ## Prerequisites
 
@@ -26,7 +27,8 @@ The baseline is intentionally small:
 ## What This Baseline Does Not Do
 
 - It does not claim the local bridge is fully self-hosted in compose.
-- It does not silently enable auth or webhooks; those remain fail closed until the later identity work.
+- It does not claim the web app login flow is finished just because the auth server surface exists.
+- It does not silently enable webhooks; webhook ingress remains fail closed.
 - It does not store secrets in the repository.
 
 ## Stop Conditions

@@ -13,6 +13,7 @@ useDefault = true
     '''pnpm-lock\.yaml$''',
     '''\.husky/''',
     '''\.gitleaks\.toml$''',
+    '''apps/server/src/auth/.*\.test\.ts$''',
   ]
 
 # Additional custom rules beyond gitleaks defaults
