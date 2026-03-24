@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   quality:
+    name: ci-quality
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
@@ -38,7 +39,7 @@ jobs:
         run: pnpm typecheck
 
       - name: Convex type check
-        if: hashFiles('convex/schema.ts') != ''
+        if: hashFiles('convex/tsconfig.json') != ''
         run: pnpm exec convex typecheck
 
       - name: Run tests with coverage

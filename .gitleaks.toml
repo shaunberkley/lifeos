@@ -2,9 +2,12 @@
 # Used by both CI (secret-scan.yml) and local pre-commit
 
 title = "LifeOS Secret Scanning"
-extend = "gitleaks:default"
+
+[extend]
+useDefault = true
 
 [allowlist]
+  description = "project-specific false positives and allowed example files"
   paths = [
     '''\.env\.example$''',
     '''pnpm-lock\.yaml$''',

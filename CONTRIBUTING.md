@@ -43,12 +43,14 @@ At minimum, include:
 
 `main` is protected. A PR targeting `main` must pass these checks before merge:
 
-- `CI / quality`
-- `Dependency Review / review`
-- `CodeQL / analyze`
-- `Secret Scan / gitleaks`
-- `Supply Chain / filesystem-sbom`
-- `Supply Chain / container-policy`
+- `ci-quality`
+- `dependency-review`
+- `codeql-analyze`
+- `secret-scan`
+- `supply-chain-filesystem-sbom`
+- `supply-chain-container-policy`
+- `scorecard-analysis`
+- `reuse-lint`
 
 Required repository policy on `main`:
 
