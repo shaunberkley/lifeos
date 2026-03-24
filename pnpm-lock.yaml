@@ -17,6 +17,9 @@ importers:
       '@types/node':
         specifier: 24.0.0
         version: 24.0.0
+      '@varlock/infisical-plugin':
+        specifier: 0.0.5
+        version: 0.0.5(varlock@0.6.3)
       '@vitest/coverage-v8':
         specifier: 4.1.1
         version: 4.1.1(vitest@4.1.1(@types/node@24.0.0)(vite@7.3.1(@types/node@24.0.0)(tsx@4.21.0)))
@@ -29,6 +32,9 @@ importers:
       typescript:
         specifier: 5.9.2
         version: 5.9.2
+      varlock:
+        specifier: 0.6.3
+        version: 0.6.3
       vitest:
         specifier: 4.1.1
         version: 4.1.1(@types/node@24.0.0)(vite@7.3.1(@types/node@24.0.0)(tsx@4.21.0))
@@ -41,6 +47,9 @@ importers:
       '@lifeos/security':
         specifier: workspace:*
         version: link:../../packages/security
+      varlock:
+        specifier: 0.6.3
+        version: 0.6.3
     devDependencies:
       '@types/node':
         specifier: 24.0.1
@@ -66,6 +75,9 @@ importers:
       hono:
         specifier: 4.7.10
         version: 4.7.10
+      varlock:
+        specifier: 0.6.3
+        version: 0.6.3
     devDependencies:
       '@types/node':
         specifier: 24.0.1
@@ -770,6 +782,12 @@ packages:
   '@types/react@19.0.0':
     resolution: {integrity: sha512-MY3oPudxvMYyesqs/kW1Bh8y9VqSmf+tzqw3ae8a9DZW68pUe3zAdHeI1jc6iAysuRdACnVknHP8AhwD4/dxtg==}
 
+  '@varlock/infisical-plugin@0.0.5':
+    resolution: {integrity: sha512-gQVl5DTbpcxznqfSWFMYifdGYWl9O9wBYGG1j1kEsEetI0T0E8aQJpYo1Z/5t2lSwC8mJ7uxw38+ZKzif+xBaQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      varlock: ^0.6.0
+
   '@vitejs/plugin-react@5.0.0':
     resolution: {integrity: sha512-Jx9JfsTa05bYkS9xo0hkofp2dCmp1blrKjw9JONs5BTHOvJCgLbaPSuZLGSVJW6u2qe0tc4eevY0+gSNNi0YCw==}
     engines: {node: ^20.19.0 || >=22.12.0}
@@ -1150,6 +1168,11 @@ packages:
     hasBin: true
     peerDependencies:
       browserslist: '>= 4.21.0'
+
+  varlock@0.6.3:
+    resolution: {integrity: sha512-cIeXMs7Vhw9LCz1mZFJjxaBD2Z+rIpVMK49tYnZT7lNWO5Ey6vyCaW+B2IsL5zufuyNMxG1UvK5FZnfI5kVFBQ==}
+    engines: {bun: '>=1.3.3', node: '>=22'}
+    hasBin: true
 
   vite@7.0.0:
     resolution: {integrity: sha512-ixXJB1YRgDIw2OszKQS9WxGHKwLdCsbQNkpJN171udl6szi/rIySHL6/Os3s2+oE4P/FLD4dxg4mD7Wust+u5g==}
@@ -1735,6 +1758,10 @@ snapshots:
     dependencies:
       csstype: 3.2.3
 
+  '@varlock/infisical-plugin@0.0.5(varlock@0.6.3)':
+    dependencies:
+      varlock: 0.6.3
+
   '@vitejs/plugin-react@5.0.0(vite@7.0.0(@types/node@24.12.0)(tsx@4.21.0))':
     dependencies:
       '@babel/core': 7.29.0
@@ -2138,6 +2165,8 @@ snapshots:
       browserslist: 4.28.1
       escalade: 3.2.0
       picocolors: 1.1.1
+
+  varlock@0.6.3: {}
 
   vite@7.0.0(@types/node@24.12.0)(tsx@4.21.0):
     dependencies:

@@ -1,5 +1,8 @@
 import { ConfigurationError, createLogger } from "@lifeos/logging";
+import { initVarlockEnv } from "varlock/env";
 import { createBridge } from "./bridge";
+
+initVarlockEnv();
 
 const logger = createLogger({ service: "lifeos-local-bridge" });
 const bridge = createBridge();

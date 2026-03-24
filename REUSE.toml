@@ -1,0 +1,44 @@
+version = 1
+
+[[annotations]]
+path = [
+  ".claude/**",
+  ".editorconfig",
+  ".env.example",
+  ".env.schema",
+  ".gitattributes",
+  ".github/**",
+  ".gitignore",
+  ".gitleaks.toml",
+  ".husky/**",
+  ".npmrc",
+  ".nvmrc",
+  "LICENSE",
+  "README.md",
+  "SECURITY.md",
+  "CONTRIBUTING.md",
+  "CODE_OF_CONDUCT.md",
+  "DEVELOPMENT.md",
+  "lifeos-architecture-plan.md",
+  "lifeos-master-plan.md",
+  "llms-full.txt",
+  "llms.txt",
+  "biome.json",
+  "docker-compose.yml",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "playwright.config.ts",
+  "turbo.json",
+  "tsconfig.json",
+  "tsconfig.base.json",
+  "vitest.config.ts",
+  "apps/**",
+  "convex/**",
+  "docs/**",
+  "packages/**",
+  "tools/**",
+]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Shaun Berkley"
+SPDX-License-Identifier = "AGPL-3.0-only"

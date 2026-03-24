@@ -1,4 +1,4 @@
-name: CodeQL
+name: CodeQL Analysis
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
   schedule:
-    - cron: '17 3 * * 1'
+    - cron: "17 3 * * 1"
 
 permissions:
   actions: read
@@ -15,6 +15,7 @@ permissions:
 
 jobs:
   analyze:
+    name: codeql-analyze
     if: ${{ hashFiles('**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.mjs', '**/*.cjs') != '' }}
     runs-on: ubuntu-latest
     strategy:

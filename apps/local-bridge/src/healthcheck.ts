@@ -1,4 +1,7 @@
+import { initVarlockEnv } from "varlock/env";
 import { createBridge } from "./bridge";
+
+initVarlockEnv({ allowFail: true });
 
 const status = await createBridge().start();
 
