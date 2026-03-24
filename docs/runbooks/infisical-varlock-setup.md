@@ -49,6 +49,7 @@ Everything else should be resolved through Infisical by Varlock.
 Store these secrets under the configured secret path `/lifeos`:
 
 - `AUTH_ISSUER`
+- `BETTER_AUTH_SECRET`
 - `CONVEX_APPLICATION_ID`
 - `CONVEX_DEPLOYMENT`
 - `CONVEX_URL`
@@ -57,6 +58,8 @@ Store these secrets under the configured secret path `/lifeos`:
 
 You can also move these into Infisical later if you want full centralization:
 
+- `WEB_ORIGIN`
+- `AUTH_DATABASE_PATH`
 - `OLLAMA_BASE_URL`
 - `OLLAMA_MODEL`
 

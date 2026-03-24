@@ -1,15 +1,18 @@
 import type { AuthConfig } from "convex/server";
 
-export const disabledAuthConfig = {
+const issuer = process.env.AUTH_ISSUER ?? "http://localhost:3000";
+const applicationID = process.env.CONVEX_APPLICATION_ID ?? "lifeos-dev";
+
+export const convexAuthConfig = {
   providers: [
     {
       type: "customJwt",
-      issuer: "https://auth.lifeos.invalid",
-      jwks: "https://auth.lifeos.invalid/.well-known/jwks.json",
+      issuer,
+      jwks: `${issuer}/auth/.well-known/jwks.json`,
       algorithm: "ES256",
-      applicationID: "lifeos-disabled",
+      applicationID,
     },
   ],
 } satisfies AuthConfig;
 
-export default disabledAuthConfig;
+export default convexAuthConfig;

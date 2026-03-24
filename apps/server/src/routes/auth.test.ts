@@ -1,36 +1,67 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../app";
-import { authRoute } from "./auth";
+import { AUTH_JWKS_PATH } from "../auth/config";
+import { resetAuthRuntimeForTests } from "../auth/runtime";
 
 describe("auth route", () => {
-  it("fails closed with not implemented", async () => {
-    const response = await authRoute.request("http://lifeos.test/auth", {
-      method: "POST",
-      headers: {
-        "x-correlation-id": "req-auth-1",
-      },
+  async function withAuthEnvironment() {
+    process.env.AUTH_ISSUER = "http://lifeos.test";
+    process.env.CONVEX_APPLICATION_ID = "lifeos-dev";
+    process.env.BETTER_AUTH_SECRET = "test-secret-for-lifeos-auth-route";
+    process.env.WEB_ORIGIN = "http://localhost:1337";
+    process.env.AUTH_DATABASE_PATH = path.join(
+      os.tmpdir(),
+      `lifeos-auth-${crypto.randomUUID()}.sqlite`,
+    );
+    await resetAuthRuntimeForTests();
+    return process.env.AUTH_DATABASE_PATH;
+  }
+
+  it("serves a JWKS document for Convex custom JWT verification", async () => {
+    const databasePath = await withAuthEnvironment();
+
+    const response = await createApp().request(AUTH_JWKS_PATH, {
+      method: "GET",
     });
 
-    expect(response.status).toBe(501);
-    await expect(response.json()).resolves.toEqual({
-      ok: false,
-      error: "not_implemented",
-      message:
-        "Auth is disabled until Better Auth, JWT issuance, and Convex verification are wired.",
-      correlationId: undefined,
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      keys: expect.arrayContaining([
+        expect.objectContaining({
+          alg: "ES256",
+          kid: expect.any(String),
+          kty: "EC",
+        }),
+      ]),
     });
+
+    await resetAuthRuntimeForTests();
+    if (databasePath) {
+      await fs.rm(databasePath, { force: true });
+    }
   });
 
   it("echoes the correlation id when mounted in the application", async () => {
-    const response = await createApp().request("/auth", {
-      method: "POST",
+    const databasePath = await withAuthEnvironment();
+
+    const response = await createApp().request(AUTH_JWKS_PATH, {
+      method: "GET",
       headers: {
         "x-correlation-id": "req-auth-mounted",
       },
     });
 
+    expect(response.headers.get("x-correlation-id")).toBe("req-auth-mounted");
     await expect(response.json()).resolves.toMatchObject({
-      correlationId: "req-auth-mounted",
+      keys: expect.any(Array),
     });
+
+    await resetAuthRuntimeForTests();
+    if (databasePath) {
+      await fs.rm(databasePath, { force: true });
+    }
   });
 });
