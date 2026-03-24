@@ -14,9 +14,9 @@
     "@lifeos/security": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "24.0.1",
+    "@types/node": "25.5.0",
     "tsx": "4.19.4",
-    "typescript": "5.9.2",
+    "typescript": "6.0.2",
     "vitest": "4.1.1"
   }
 }

@@ -17,12 +17,12 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@playwright/test": "1.52.0",
-    "@types/node": "24.0.0",
-    "convex": "1.24.0",
-    "turbo": "2.5.0",
-    "typescript": "5.9.2",
-    "vitest": "4.0.0"
+    "@biomejs/biome": "2.4.8",
+    "@playwright/test": "1.58.2",
+    "@types/node": "25.5.0",
+    "convex": "1.34.0",
+    "turbo": "2.8.20",
+    "typescript": "6.0.2",
+    "vitest": "4.1.1"
   }
 }
