@@ -1,0 +1,46 @@
+# Development
+
+This repository is a TypeScript monorepo with Convex, a Hono server, a web app, and a local bridge.
+
+## Prerequisites
+
+- Node 24
+- pnpm 10.6.5
+- Git
+
+## Setup
+
+1. Clone the repository.
+2. Install dependencies with `pnpm install`.
+3. Copy `.env.example` to your local env file.
+4. Run `pnpm check` to verify the workspace.
+
+## Common Commands
+
+- `pnpm dev` - run workspace dev scripts in parallel
+- `pnpm lint` - run Biome and workspace lint tasks
+- `pnpm typecheck` - run TypeScript checks across the workspace
+- `pnpm test` - run the workspace test tasks
+- `pnpm check` - run lint, typecheck, and test together
+
+## Environment
+
+Use `.env.example` as the source of truth for required local variables.
+
+Do not commit secrets. Restricted or private data should stay local unless the architecture says otherwise.
+
+## Repo Layout
+
+- `apps/web` - React frontend
+- `apps/server` - Hono server and auth/webhook boundary
+- `apps/local-bridge` - local data processing and restricted connectors
+- `convex` - backend schema, functions, and HTTP handlers
+- `packages` - shared libraries and domain code
+- `docs` - architecture, operations, and contributor-facing docs
+
+## Working With AI
+
+- Keep changes scoped to one issue at a time.
+- Add evidence to the closing comment or PR.
+- If a tool-generated instruction file drifts from reality, remove or shrink it.
+- Prefer deterministic, explicit behavior over clever automation.

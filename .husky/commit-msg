@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh" 2>/dev/null || true
+
+set -eu
+
+if grep -qiE '(co-authored-by|generated[- ]by|generated with).*(claude|ai|anthropic|openai|codex|cursor|copilot)' "$1"; then
+  echo "ERROR: Commit contains AI attribution. Remove Co-Authored-By or Generated-By lines."
+  exit 1
+fi
+
+if grep -qiE 'claude code|anthropic|co-authored-by:.*claude' "$1"; then
+  echo "ERROR: Commit contains Claude or Anthropic attribution. Remove it."
+  exit 1
+fi

@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.vite/
+.turbo/
+
+# Convex
+.convex/
+convex/_generated/
+
+# Test output
+coverage/
+playwright-report/
+test-results/
+
+# Environment variables (NEVER commit secrets)
+.env
+.env.*
+!.env.example
+
+# Secrets & credentials (NEVER commit)
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+*.crt
+*.csr
+credentials.json
+service-account*.json
+*-credentials.*
+*-secrets.*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.nvim.lua
+
+# Debug
+*.log
+npm-debug.log*
+pnpm-debug.log*

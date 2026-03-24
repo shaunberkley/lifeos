@@ -1,0 +1,44 @@
+name: Supply Chain
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  filesystem-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Generate filesystem SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610
+        with:
+          path: .
+          format: spdx-json
+          output-file: lifeos.sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: lifeos-sbom
+          path: lifeos.sbom.spdx.json
+
+  container-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+
+      - name: Enforce explicit container policy
+        run: |
+          if [ -f Dockerfile ] || [ -f docker/Dockerfile ]; then
+            echo "Container image surface detected."
+            echo "Add a real build-and-scan workflow before merging containerized services."
+            exit 1
+          fi
+
+          echo "No container image surface exists yet. Container policy is explicit and fail-closed for future Dockerfiles."

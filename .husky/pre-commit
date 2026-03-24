@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh" 2>/dev/null || true
+
+set -eu
+
+staged_files=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+report_file=$(mktemp)
+
+trap 'rm -f "$report_file"' EXIT INT TERM
+
+git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+  [ -n "$file" ] || continue
+
+  case "$file" in
+    .env.example|.gitleaks.toml|.husky/*)
+      continue
+      ;;
+    .env|.env.*)
+      if [ "$file" != ".env.example" ]; then
+        printf '%s\n' "ERROR: .env file staged for commit: $file" >>"$report_file"
+      fi
+      continue
+      ;;
+    *.pem|*.key|*.p12|*.pfx|*.jks|*.keystore|id_rsa*|id_ed25519*|*.crt|*.csr|credentials.json|service-account*.json|*-credentials.*|*-secrets.*)
+      printf '%s\n' "ERROR: credential file staged for commit: $file" >>"$report_file"
+      continue
+      ;;
+  esac
+done
+
+if [ -s "$report_file" ]; then
+  cat "$report_file"
+  echo
+  echo "Commit blocked. Remove secrets before committing."
+  echo "If this is a false positive, review the file and use:"
+  echo "  git commit --no-verify  (USE WITH EXTREME CAUTION)"
+  exit 1
+fi

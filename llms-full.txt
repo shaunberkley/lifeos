@@ -1,0 +1,13 @@
+LifeOS is a personal AI life management platform built as a TypeScript monorepo.
+
+Key rules:
+- Restricted health, finance, and camera raw data stays local.
+- Convex is the sync-safe system of record.
+- Integrations ingest append-only events and project into typed domain tables.
+- AI proposes, workflows execute, policies approve.
+
+Primary docs:
+- docs/architecture/lifeos-technical-architecture.md
+- docs/architecture/implementation-roadmap.md
+- docs/data-classification.md
+

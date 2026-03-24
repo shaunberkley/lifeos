@@ -1,0 +1,22 @@
+{
+  "name": "@lifeos/local-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "lint": "biome check src",
+    "start": "tsx src/main.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lifeos/security": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.1",
+    "tsx": "4.19.4",
+    "typescript": "5.9.2",
+    "vitest": "4.1.1"
+  }
+}

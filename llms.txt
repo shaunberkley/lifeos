@@ -1,0 +1,7 @@
+LifeOS is a TypeScript monorepo with Convex, Hono, a React web app, and a mandatory local privacy boundary for restricted data.
+
+Read:
+- docs/architecture/lifeos-technical-architecture.md
+- docs/architecture/implementation-roadmap.md
+- docs/data-classification.md
+

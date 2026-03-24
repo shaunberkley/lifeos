@@ -1,0 +1,11 @@
+{
+  "name": "@lifeos/logging",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "lint": "biome check src",
+    "typecheck": "tsc --project tsconfig.json --noEmit"
+  }
+}

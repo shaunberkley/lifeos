@@ -1,0 +1,46 @@
+# Gitleaks configuration for LifeOS
+# Used by both CI (secret-scan.yml) and local pre-commit
+
+title = "LifeOS Secret Scanning"
+extend = "gitleaks:default"
+
+[allowlist]
+  paths = [
+    '''\.env\.example$''',
+    '''pnpm-lock\.yaml$''',
+    '''\.husky/''',
+    '''\.gitleaks\.toml$''',
+  ]
+
+# Additional custom rules beyond gitleaks defaults
+
+[[rules]]
+  id = "convex-deploy-key"
+  description = "Convex deployment key"
+  regex = '''CONVEX_DEPLOY_KEY\s*[:=]\s*["']?[a-z0-9|]+["']?'''
+  tags = ["convex", "key"]
+
+[[rules]]
+  id = "better-auth-secret"
+  description = "Better Auth secret"
+  regex = '''BETTER_AUTH_SECRET\s*[:=]\s*["'][^"']{16,}["']'''
+  tags = ["auth", "secret"]
+
+[[rules]]
+  id = "ollama-api-key"
+  description = "Ollama API key (if using cloud)"
+  regex = '''OLLAMA_API_KEY\s*[:=]\s*["'][^"']{16,}["']'''
+  tags = ["ollama", "key"]
+
+[[rules]]
+  id = "hardcoded-bearer-token"
+  description = "Hardcoded Bearer token in source"
+  regex = '''Bearer\s+[A-Za-z0-9\-._~+/]{20,}'''
+  path = '''\.ts$'''
+  tags = ["token"]
+
+[[rules]]
+  id = "local-bridge-shared-secret"
+  description = "Local bridge shared secret"
+  regex = '''LOCAL_BRIDGE_SHARED_SECRET\s*[:=]\s*["'][^"']{8,}["']'''
+  tags = ["bridge", "secret"]
