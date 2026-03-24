@@ -8,16 +8,23 @@
   },
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --parallel",
+    "convex:deploy": "varlock run -- pnpm exec convex deploy",
+    "convex:dev": "varlock run -- pnpm exec convex dev",
+    "dev": "varlock run -- turbo run dev --parallel",
+    "dev:bridge": "varlock run -- pnpm --filter @lifeos/local-bridge dev",
+    "dev:server": "varlock run -- pnpm --filter @lifeos/server dev",
+    "dev:web": "varlock run -- pnpm --filter @lifeos/web dev",
     "lint": "turbo run lint",
     "format": "biome check --write .",
     "prepare": "git config --local core.hooksPath .husky",
+    "secrets:check": "varlock load",
     "typecheck": "turbo run typecheck",
     "test": "pnpm exec vitest run convex/*.test.ts && turbo run test",
     "test:coverage": "pnpm exec vitest run --coverage",
     "check": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
+    "@varlock/infisical-plugin": "0.0.5",
     "@biomejs/biome": "1.9.4",
     "@playwright/test": "1.52.0",
     "@types/node": "24.0.0",
@@ -25,6 +32,7 @@
     "convex": "1.24.0",
     "turbo": "2.5.0",
     "typescript": "5.9.2",
+    "varlock": "0.6.3",
     "vitest": "4.1.1"
   }
 }
