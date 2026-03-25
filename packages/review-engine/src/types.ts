@@ -40,6 +40,7 @@ export type PullRequestRef = {
   repo: string;
   baseRefName?: string;
   headRefName?: string;
+  headSha?: string;
   title?: string;
   url?: string;
 };

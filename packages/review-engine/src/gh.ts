@@ -15,6 +15,7 @@ function parsePullRequest(payload: string): PullRequestContext {
     body?: string;
     commits?: { oid: string }[];
     files?: { additions?: number; deletions?: number; path: string; patch?: string }[];
+    headRefOid?: string;
     headRefName?: string;
     number: number;
     title?: string;
@@ -46,6 +47,10 @@ function parsePullRequest(payload: string): PullRequestContext {
 
   if (parsed.headRefName !== undefined) {
     pullRequest.headRefName = parsed.headRefName;
+  }
+
+  if (parsed.headRefOid !== undefined) {
+    pullRequest.headSha = parsed.headRefOid;
   }
 
   if (parsed.title !== undefined) {
@@ -81,7 +86,7 @@ export function createGhClient(): GhClient {
           "--repo",
           repo,
           "--json",
-          "number,title,url,body,baseRefName,headRefName,commits,files",
+          "number,title,url,body,baseRefName,headRefName,headRefOid,commits,files",
         ],
         { maxBuffer: 16 * 1024 * 1024 },
       );

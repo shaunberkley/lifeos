@@ -1,5 +1,7 @@
-import { ServiceUnavailableError } from "@lifeos/logging";
+import { AppError, ServiceUnavailableError } from "@lifeos/logging";
 import {
+  type CodexRunner,
+  type GhClient,
   type ReviewEngineResult,
   buildSpecialists,
   createCodexRunner,
@@ -9,13 +11,26 @@ import {
   runReviewEngine,
 } from "@lifeos/review-engine";
 import { getGitHubPublishEnvironment } from "./config";
-import { createGitHubPublishService } from "./publisher";
+import { type GitHubPublishServiceConfig, createGitHubPublishService } from "./publisher";
 import { getReviewJob, updateReviewJob } from "./store";
 import type {
   GitHubInlineCommentDraft,
+  GitHubPublishResult,
   GitHubPublishReviewRequest,
   GitHubReviewJob,
 } from "./types";
+
+type ReviewExecutionDependencies = {
+  readonly ghClient?: GhClient;
+  readonly runner?: CodexRunner;
+  readonly publishService?: {
+    publishReview(
+      job: GitHubReviewJob,
+      request: GitHubPublishReviewRequest,
+    ): Promise<GitHubPublishResult>;
+  };
+  readonly publishEnvironment?: GitHubPublishServiceConfig;
+};
 
 function toSummaryMarkdown(job: GitHubReviewJob, result: ReviewEngineResult): string {
   const lines = [
@@ -74,12 +89,21 @@ function toPublishRequest(
   };
 }
 
-export async function executeReviewJob(reviewId: string, repositoryRoot = process.cwd()) {
+export async function executeReviewJob(
+  reviewId: string,
+  repositoryRoot = process.cwd(),
+  dependencies: ReviewExecutionDependencies = {},
+) {
   const job = getReviewJob(reviewId);
   if (!job) {
-    throw new ServiceUnavailableError("Review job not found.", {
-      reviewId,
-      surface: "github-review-executor",
+    throw new AppError({
+      code: "not_found",
+      message: "Review job not found.",
+      status: 404,
+      details: {
+        reviewId,
+        surface: "github-review-executor",
+      },
     });
   }
 
@@ -94,7 +118,7 @@ export async function executeReviewJob(reviewId: string, repositoryRoot = proces
   }));
 
   try {
-    const gh = createGhClient();
+    const gh = dependencies.ghClient ?? createGhClient();
     const pullRequest = await gh.readPullRequest(job.repository, job.pullRequestNumber);
     const rawDiff = await gh.readDiff(job.repository, job.pullRequestNumber);
     const result = await runReviewEngine(
@@ -107,14 +131,22 @@ export async function executeReviewJob(reviewId: string, repositoryRoot = proces
         specialists: buildSpecialists("deep", defaultPromptTemplate),
       },
       {
-        runner: createCodexRunner(),
+        runner: dependencies.runner ?? createCodexRunner(),
       },
     );
 
     const summaryMarkdown = toSummaryMarkdown(job, result);
     const publishRequest = toPublishRequest(job, result);
-    const publisher = createGitHubPublishService(getGitHubPublishEnvironment());
-    const publication = await publisher.publishReview(job, publishRequest);
+    const publisher =
+      dependencies.publishService ??
+      createGitHubPublishService(dependencies.publishEnvironment ?? getGitHubPublishEnvironment());
+    const publication = await publisher.publishReview(
+      {
+        ...job,
+        headSha: pullRequest.pullRequest.headSha ?? job.headSha,
+      },
+      publishRequest,
+    );
     const finishedAt = new Date().toISOString();
 
     updateReviewJob(reviewId, (current) => ({

@@ -160,4 +160,17 @@ describe("review routes", () => {
     });
     expect(payload.review).not.toHaveProperty("execution");
   });
+
+  it("returns not_found when executing an unknown review job", async () => {
+    const response = await reviewsRoute.request("http://lifeos.test/missing-review/run", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: "not_found",
+      message: "Review job not found.",
+    });
+  });
 });

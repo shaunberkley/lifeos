@@ -221,13 +221,12 @@ export const listQueuedReviewJobs = queryGeneric({
     }),
   ),
   handler: async (ctx) => {
-    const jobs = await ctx.db
-      .query("reviewJobs")
-      .withIndex("by_workspace_status", (query) => query.eq("status", "queued"))
-      .collect();
+    const jobs = await ctx.db.query("reviewJobs").collect();
 
     return jobs
-      .filter((job) => job.repository && job.pullRequestNumber && job.pullRequestUrl)
+      .filter(
+        (job) => job.status === "queued" && job.repository && job.pullRequestNumber && job.pullRequestUrl,
+      )
       .map((job) => ({
         id: job._id,
         repository: job.repository ?? "",
