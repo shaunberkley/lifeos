@@ -146,7 +146,6 @@ export function createCodexRunner(binary = "codex"): CodexRunner {
           binary,
           [
             "exec",
-            "--json",
             "--skip-git-repo-check",
             "--output-schema",
             schemaPath,

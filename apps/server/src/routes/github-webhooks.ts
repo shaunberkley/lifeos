@@ -114,7 +114,7 @@ export const githubWebhooksRoute = new Hono<{ Variables: AppVariables }>().post(
         },
       });
 
-      if (process.env.BOB_AUTO_RUN === "true") {
+      if (process.env.LIFEOS_REVIEWER_AUTO_RUN === "true") {
         queueMicrotask(() => {
           executeReviewJob(reviewJob.id).catch((error) => {
             logger.error("automatic GitHub review execution failed", {
