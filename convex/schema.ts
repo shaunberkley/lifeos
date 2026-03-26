@@ -170,8 +170,23 @@ export default defineSchema({
       v.literal("published"),
       v.literal("canceled"),
     ),
-    execution: v.optional(v.any()),
-    publication: v.optional(v.any()),
+    execution: v.optional(
+      v.object({
+        startedAt: v.optional(v.string()),
+        finishedAt: v.optional(v.string()),
+        durationMs: v.optional(v.number()),
+        error: v.optional(v.string()),
+        retryCount: v.optional(v.number()),
+      }),
+    ),
+    publication: v.optional(
+      v.object({
+        summaryCommentUrl: v.optional(v.string()),
+        summaryCommentId: v.optional(v.number()),
+        publishedAt: v.optional(v.string()),
+        inlineCommentUrls: v.array(v.string()),
+      }),
+    ),
     createdAt: v.string(),
     updatedAt: v.string(),
   })

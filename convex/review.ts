@@ -256,14 +256,55 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
 
 export const listReviewJobs = queryGeneric({
   args: {},
-  returns: v.array(v.any()),
+  returns: v.array(v.object({
+    id: v.string(),
+    status: v.optional(v.string()),
+    title: v.optional(v.string()),
+    repository: v.optional(v.string()),
+    pullRequestNumber: v.optional(v.number()),
+    pullRequestUrl: v.optional(v.string()),
+    headSha: v.optional(v.string()),
+    baseSha: v.optional(v.string()),
+    author: v.optional(v.string()),
+    draft: v.optional(v.boolean()),
+    eventType: v.optional(v.string()),
+    deliveryId: v.optional(v.string()),
+    idempotencyKey: v.optional(v.string()),
+    provider: v.optional(v.literal("github")),
+    createdAt: v.optional(v.string()),
+    updatedAt: v.optional(v.string()),
+    publication: v.optional(v.object({
+      summaryCommentUrl: v.optional(v.string()),
+      summaryCommentId: v.optional(v.number()),
+      publishedAt: v.optional(v.string()),
+      inlineCommentUrls: v.array(v.string()),
+    })),
+  })),
   handler: async (ctx) => {
     await requireAuth(ctx);
 
     const jobs = await ctx.db.query("reviewJobs").collect();
     return jobs
       .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? ""))
-      .map(toReviewJobSnapshot);
+      .map((job) => ({
+        id: job._id,
+        status: job.status,
+        title: job.title,
+        repository: job.repository,
+        pullRequestNumber: job.pullRequestNumber,
+        pullRequestUrl: job.pullRequestUrl,
+        headSha: job.headSha,
+        baseSha: job.baseSha,
+        author: job.author,
+        draft: job.draft,
+        eventType: job.eventType,
+        deliveryId: job.deliveryId,
+        idempotencyKey: job.idempotencyKey,
+        provider: job.provider,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        publication: job.publication ?? { inlineCommentUrls: [] },
+      }));
   },
 });
 
@@ -337,8 +378,19 @@ export const getReviewJob = queryGeneric({
       status: v.string(),
       createdAt: v.string(),
       updatedAt: v.string(),
-      execution: v.optional(v.any()),
-      publication: v.optional(v.any()),
+      execution: v.optional(v.object({
+        startedAt: v.optional(v.string()),
+        finishedAt: v.optional(v.string()),
+        durationMs: v.optional(v.number()),
+        error: v.optional(v.string()),
+        retryCount: v.optional(v.number()),
+      })),
+      publication: v.optional(v.object({
+        summaryCommentUrl: v.optional(v.string()),
+        summaryCommentId: v.optional(v.number()),
+        publishedAt: v.optional(v.string()),
+        inlineCommentUrls: v.array(v.string()),
+      })),
       comments: v.array(
         v.object({
           id: v.id("reviewComments"),
@@ -396,24 +448,31 @@ export const getReviewJob = queryGeneric({
 export const replaceReviewJobState = mutationGeneric({
   args: {
     reviewJobId: v.id("reviewJobs"),
-    job: v.any(),
+    job: v.object({
+      status: v.optional(v.string()),
+      title: v.optional(v.string()),
+      updatedAt: v.optional(v.string()),
+      execution: v.optional(v.object({
+        startedAt: v.optional(v.string()),
+        finishedAt: v.optional(v.string()),
+        durationMs: v.optional(v.number()),
+        error: v.optional(v.string()),
+        retryCount: v.optional(v.number()),
+      })),
+      publication: v.optional(v.object({
+        summaryCommentUrl: v.optional(v.string()),
+        summaryCommentId: v.optional(v.number()),
+        publishedAt: v.optional(v.string()),
+        inlineCommentUrls: v.array(v.string()),
+      })),
+    }),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAuth(ctx);
 
-    const {
-      id: _ignored,
-      comments: _comments,
-      ...job
-    } = args.job as {
-      id?: string;
-      comments?: unknown;
-      [key: string]: unknown;
-    };
-
     const patch: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(job)) {
+    for (const [key, value] of Object.entries(args.job)) {
       if (value !== undefined) {
         patch[key] = value;
       }
