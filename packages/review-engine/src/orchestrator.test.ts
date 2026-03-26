@@ -4,11 +4,15 @@ import { runReviewEngine } from "./orchestrator";
 import type { PullRequestContext, SpecialistPassDefinition } from "./types";
 
 describe("review-engine orchestrator", () => {
-  it("runs specialist passes in order and produces deterministic artifacts", async () => {
-    const calls: string[] = [];
+  it("runs specialist passes in parallel and keeps deterministic result ordering", async () => {
+    const started: string[] = [];
+    const completed: string[] = [];
     const runner: CodexRunner = {
       async runSpecialist(input) {
-        calls.push(input.definition.id);
+        started.push(input.definition.id);
+        const delayMs = input.definition.id === "contracts" ? 25 : 5;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        completed.push(input.definition.id);
         return {
           passId: input.definition.id,
           kind: input.definition.kind,
@@ -82,7 +86,10 @@ describe("review-engine orchestrator", () => {
       },
     );
 
-    expect(calls).toEqual(["contracts", "runtime"]);
+    expect(started).toEqual(["contracts", "runtime"]);
+    expect(completed).toEqual(["runtime", "contracts"]);
+    expect(result.specialistPasses.map((pass) => pass.passId)).toEqual(["contracts", "runtime"]);
+    expect(result.synthesis.findings.map((finding) => finding.title)).toEqual(["Runtime failure"]);
     expect(result.synthesis.summary.outcome).toBe("request_changes");
     expect(result.synthesis.summary.overallRisk).toBe("high");
     expect(result.artifacts.contextManifest.specialists).toEqual([

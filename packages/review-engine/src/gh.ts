@@ -4,10 +4,28 @@ import type { ChangedFileSummary, PullRequestContext, PullRequestRef } from "./t
 
 const execFileAsync = promisify(execFile);
 
+type CommandRunner = (
+  command: string,
+  args: readonly string[],
+  options?: { cwd?: string; maxBuffer?: number },
+) => Promise<{ stdout: string }>;
+
 type GhClient = {
+  resolveRepository(repositoryRoot: string): Promise<string>;
   readPullRequest(repo: string, prNumber: number): Promise<PullRequestContext>;
   readDiff(repo: string, prNumber: number): Promise<string>;
 };
+
+function createCommandRunner(): CommandRunner {
+  return async (command, args, options) => {
+    const result = await execFileAsync(command, [...args], {
+      cwd: options?.cwd,
+      maxBuffer: options?.maxBuffer,
+    });
+
+    return { stdout: result.stdout };
+  };
+}
 
 function parsePullRequest(payload: string): PullRequestContext {
   const parsed = JSON.parse(payload) as {
@@ -74,10 +92,68 @@ function parsePullRequest(payload: string): PullRequestContext {
   return context;
 }
 
-export function createGhClient(): GhClient {
+export function parseGitHubRepoFromRemote(remote: string): string | undefined {
+  const normalized = remote.trim();
+  const match =
+    /^(?:git@github\.com:|https:\/\/github\.com\/|ssh:\/\/git@github\.com\/)([^/]+)\/([^/]+?)(?:\.git)?$/.exec(
+      normalized,
+    );
+
+  if (!match) {
+    return undefined;
+  }
+
+  return `${match[1]}/${match[2]}`;
+}
+
+export async function resolveRepositoryFromContext(
+  repositoryRoot: string,
+  runner: CommandRunner = createCommandRunner(),
+): Promise<string> {
+  for (const remoteName of ["origin", "upstream"] as const) {
+    try {
+      const { stdout } = await runner("git", ["remote", "get-url", remoteName], {
+        cwd: repositoryRoot,
+        maxBuffer: 1024 * 1024,
+      });
+      const repository = parseGitHubRepoFromRemote(stdout);
+
+      if (repository) {
+        return repository;
+      }
+    } catch {
+      // Try the next source.
+    }
+  }
+
+  try {
+    const { stdout } = await runner("gh", ["repo", "view", "--json", "owner,name"], {
+      cwd: repositoryRoot,
+      maxBuffer: 1024 * 1024,
+    });
+    const parsed = JSON.parse(stdout) as {
+      name?: string;
+      owner?: { login?: string };
+    };
+
+    if (parsed.owner?.login && parsed.name) {
+      return `${parsed.owner.login}/${parsed.name}`;
+    }
+  } catch {
+    // Surface the explicit error below.
+  }
+
+  throw new Error("Unable to determine the GitHub repository. Pass --repo owner/name.");
+}
+
+export function createGhClient(runner: CommandRunner = createCommandRunner()): GhClient {
   return {
+    resolveRepository(repositoryRoot) {
+      return resolveRepositoryFromContext(repositoryRoot, runner);
+    },
+
     async readPullRequest(repo, prNumber) {
-      const { stdout } = await execFileAsync(
+      const { stdout } = await runner(
         "gh",
         [
           "pr",
@@ -101,7 +177,7 @@ export function createGhClient(): GhClient {
     },
 
     async readDiff(repo, prNumber) {
-      const { stdout } = await execFileAsync(
+      const { stdout } = await runner(
         "gh",
         ["pr", "diff", String(prNumber), "--repo", repo, "--patch"],
         { maxBuffer: 32 * 1024 * 1024 },
@@ -111,4 +187,4 @@ export function createGhClient(): GhClient {
   };
 }
 
-export type { GhClient };
+export type { CommandRunner, GhClient };

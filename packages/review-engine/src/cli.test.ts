@@ -2,16 +2,21 @@ import { describe, expect, it } from "vitest";
 import { buildSpecialists, parseArgs } from "./cli";
 
 describe("review-engine cli", () => {
-  it("parses required arguments and deep mode", () => {
-    expect(
-      parseArgs(["--pr", "95", "--deep", "--repo", "shaunberkley/lifeos", "--root", "/repo"]),
-    ).toEqual({
+  it("parses required arguments without injecting a repo default", () => {
+    expect(parseArgs(["--pr", "95", "--deep", "--root", "/repo"])).toEqual({
       prNumber: 95,
       deep: true,
-      repo: "shaunberkley/lifeos",
+      repo: undefined,
       repositoryRoot: "/repo",
       promptSource: expect.any(Object),
       rubricSource: expect.any(Object),
+    });
+  });
+
+  it("preserves an explicit repo override", () => {
+    expect(parseArgs(["--pr", "95", "--repo", "owner/repo"])).toMatchObject({
+      prNumber: 95,
+      repo: "owner/repo",
     });
   });
 

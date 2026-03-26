@@ -6,7 +6,12 @@ export {
 } from "./artifacts";
 export { createCodexRunner, summarizePasses, type CodexRunner } from "./codex";
 export { buildSpecialists, defaultPromptTemplate, defaultRubricDefinition } from "./defaults";
-export { createGhClient, type GhClient } from "./gh";
+export {
+  createGhClient,
+  parseGitHubRepoFromRemote,
+  resolveRepositoryFromContext,
+  type GhClient,
+} from "./gh";
 export { loadPromptTemplate, loadRubricDefinition } from "./loaders";
 export { determineOverallRisk, runReviewEngine } from "./orchestrator";
 export { stableStringify } from "./stable";

@@ -10,7 +10,7 @@ import type { PromptSource } from "./types";
 type CliOptions = {
   prNumber: number;
   deep: boolean;
-  repo: string;
+  repo?: string;
   repositoryRoot: string;
   promptSource: PromptSource;
   rubricSource: PromptSource;
@@ -29,7 +29,7 @@ const defaultRubricSource: PromptSource = {
 function parseArgs(argv: readonly string[]): CliOptions {
   let prNumber: number | undefined;
   let deep = false;
-  let repo = "shaunberkley/lifeos";
+  let repo: string | undefined;
   let repositoryRoot = cwd();
   let promptSource = defaultPromptSource;
   let rubricSource = defaultRubricSource;
@@ -99,7 +99,19 @@ function parseArgs(argv: readonly string[]): CliOptions {
     throw new Error("A positive --pr value is required.");
   }
 
-  return { prNumber, deep, repo, repositoryRoot, promptSource, rubricSource };
+  const options: CliOptions = {
+    prNumber,
+    deep,
+    repositoryRoot,
+    promptSource,
+    rubricSource,
+  };
+
+  if (repo !== undefined) {
+    options.repo = repo;
+  }
+
+  return options;
 }
 
 export async function runCli(argv: readonly string[]): Promise<void> {
@@ -107,8 +119,9 @@ export async function runCli(argv: readonly string[]): Promise<void> {
   const prompt = await loadPromptTemplate(options.promptSource, options.repositoryRoot);
   const rubric = await loadRubricDefinition(options.rubricSource, options.repositoryRoot);
   const gh = createGhClient();
-  const pullRequest = await gh.readPullRequest(options.repo, options.prNumber);
-  const rawDiff = await gh.readDiff(options.repo, options.prNumber);
+  const repository = options.repo ?? (await gh.resolveRepository(options.repositoryRoot));
+  const pullRequest = await gh.readPullRequest(repository, options.prNumber);
+  const rawDiff = await gh.readDiff(repository, options.prNumber);
   const reviewResult = await runReviewEngine(
     {
       repositoryRoot: options.repositoryRoot,

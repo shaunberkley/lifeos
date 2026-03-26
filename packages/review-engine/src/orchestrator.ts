@@ -89,18 +89,16 @@ export async function runReviewEngine(
     createdAt,
   );
 
-  const specialistPasses = [];
-
-  for (const specialist of input.specialists) {
-    specialistPasses.push(
-      await dependencies.runner.runSpecialist({
+  const specialistPasses = await Promise.all(
+    input.specialists.map(async (specialist) =>
+      dependencies.runner.runSpecialist({
         definition: specialist,
         diffManifest,
         contextManifest,
         rubric: input.rubric,
       }),
-    );
-  }
+    ),
+  );
 
   const synthesis = summarizePasses(specialistPasses);
   synthesis.summary.overallRisk = determineOverallRisk(synthesis.findings);
