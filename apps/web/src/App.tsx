@@ -1,13 +1,13 @@
-import { useState } from "react";
-
-import {
-  monitoringSignals,
-  opsEvents,
-  overviewStats,
-  providerConnections,
-  reviewPolicyRules,
-  reviewRuns,
+import { useEffect, useState } from "react";
+import type {
+  MonitoringSignal,
+  OpsEvent,
+  OverviewStat,
+  ProviderConnection,
+  ReviewPolicyRule,
+  ReviewRun,
 } from "./reviewerData";
+import { createShellReviewerWorkspace, loadReviewerWorkspaceState } from "./reviewerWorkspace";
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(" ");
@@ -61,15 +61,7 @@ function StatCard({
   );
 }
 
-function ProviderCard({
-  name,
-  kind,
-  status,
-  endpoint,
-  owner,
-  lastSync,
-  note,
-}: (typeof providerConnections)[number]) {
+function ProviderCard({ name, kind, status, endpoint, owner, lastSync, note }: ProviderConnection) {
   return (
     <article className="surface-card provider-card">
       <div className="provider-card__top">
@@ -108,7 +100,7 @@ function ProviderCard({
   );
 }
 
-function PolicyCard({ name, mode, summary, enforcement }: (typeof reviewPolicyRules)[number]) {
+function PolicyCard({ name, mode, summary, enforcement }: ReviewPolicyRule) {
   const pillTone = mode === "allow" ? "success" : mode === "review" ? "warning" : "danger";
 
   return (
@@ -128,7 +120,7 @@ function RunListItem({
   selected,
   onSelect,
 }: {
-  run: (typeof reviewRuns)[number];
+  run: ReviewRun;
   selected: boolean;
   onSelect: () => void;
 }) {
@@ -167,7 +159,7 @@ function RunListItem({
   );
 }
 
-function SignalCard({ name, value, tone, note }: (typeof monitoringSignals)[number]) {
+function SignalCard({ name, value, tone, note }: MonitoringSignal) {
   return (
     <article className="surface-card signal-card">
       <div className="signal-card__top">
@@ -181,14 +173,31 @@ function SignalCard({ name, value, tone, note }: (typeof monitoringSignals)[numb
 }
 
 export function App() {
-  const firstRun = reviewRuns[0];
+  const [workspace, setWorkspace] = useState(createShellReviewerWorkspace);
+  const [activeRunId, setActiveRunId] = useState(() => workspace.reviewRuns[0]?.id ?? "");
 
-  if (!firstRun) {
-    throw new Error("Review run fixtures are empty");
-  }
+  useEffect(() => {
+    let cancelled = false;
 
-  const [activeRunId, setActiveRunId] = useState(firstRun.id);
-  const activeRun = reviewRuns.find((run) => run.id === activeRunId);
+    loadReviewerWorkspaceState()
+      .then((nextWorkspace) => {
+        if (!cancelled) {
+          setWorkspace(nextWorkspace);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setWorkspace(createShellReviewerWorkspace());
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const activeRun =
+    workspace.reviewRuns.find((run) => run.id === activeRunId) ?? workspace.reviewRuns[0];
 
   if (!activeRun) {
     throw new Error("Missing active review run");
@@ -217,10 +226,19 @@ export function App() {
 
           <div className="sidebar-card">
             <p className="card-kicker">Operating mode</p>
-            <h2>Mocked state only</h2>
+            <h2>
+              {workspace.liveSource === "live"
+                ? "Live API-backed state"
+                : workspace.liveSource === "partial"
+                  ? "Live API with shell fallbacks"
+                  : "Mocked state only"}
+            </h2>
             <p className="surface-note">
-              These screens use local data shapes that will map cleanly to Convex, the local bridge,
-              and policy gates later.
+              {workspace.liveSource === "live"
+                ? "Reviewer data is loading from /providers and /reviews."
+                : workspace.liveSource === "partial"
+                  ? "Reviewer data is partially live. Missing server detail still falls back to the shell."
+                  : "These screens use local data shapes that will map cleanly to Convex, the local bridge, and policy gates later."}
             </p>
           </div>
         </aside>
@@ -239,17 +257,34 @@ export function App() {
 
             <div className="hero-side">
               <TonePill tone="success">Local-first</TonePill>
-              <TonePill tone="warning">Backend pending</TonePill>
+              <TonePill
+                tone={
+                  workspace.liveSource === "live"
+                    ? "success"
+                    : workspace.liveSource === "partial"
+                      ? "warning"
+                      : "info"
+                }
+              >
+                {workspace.liveSource === "live"
+                  ? "Live API"
+                  : workspace.liveSource === "partial"
+                    ? "Partial API"
+                    : "Backend pending"}
+              </TonePill>
               <TonePill tone="info">Policy-gated</TonePill>
               <div className="hero-card__note">
                 Raw sensitive data never crosses the boundary here. Only derived review state and
-                status summaries do.
+                status summaries do.{" "}
+                {workspace.loadErrors.length > 0
+                  ? `Live loading fell back for: ${workspace.loadErrors.join("; ")}`
+                  : "Live API loading is healthy when the reviewer service is available."}
               </div>
             </div>
           </header>
 
           <section className="metric-grid" aria-label="Overview metrics">
-            {overviewStats.map((stat) => (
+            {workspace.overviewStats.map((stat: OverviewStat) => (
               <StatCard key={stat.label} {...stat} />
             ))}
           </section>
@@ -292,7 +327,7 @@ export function App() {
               copy="Connection state, sync freshness, and ownership are visible up front so operators can see which lanes are healthy."
             />
             <div className="card-grid">
-              {providerConnections.map((provider) => (
+              {workspace.providerConnections.map((provider) => (
                 <ProviderCard key={provider.id} {...provider} />
               ))}
             </div>
@@ -305,7 +340,7 @@ export function App() {
               copy="Every automated path should know whether it is allowed, review-only, or denied before it can act."
             />
             <div className="policy-grid">
-              {reviewPolicyRules.map((rule) => (
+              {workspace.reviewPolicyRules.map((rule) => (
                 <PolicyCard key={rule.id} {...rule} />
               ))}
             </div>
@@ -319,7 +354,7 @@ export function App() {
             />
             <div className="runs-layout">
               <ul className="run-list" aria-label="Review runs list">
-                {reviewRuns.map((run) => (
+                {workspace.reviewRuns.map((run) => (
                   <RunListItem
                     key={run.id}
                     run={run}
@@ -368,6 +403,13 @@ export function App() {
                 </div>
 
                 <p className="surface-note">{activeRun.summary}</p>
+
+                {workspace.liveSource !== "fallback" && activeRun.findings.length === 0 ? (
+                  <div className="hero-card__note">
+                    Live API fallback: structured findings and checkpoints are still shell-backed
+                    until the server exposes review detail contracts.
+                  </div>
+                ) : null}
 
                 <div className="detail-columns">
                   <section>
@@ -422,7 +464,7 @@ export function App() {
               copy="This view keeps the queue, the bridge, and the reviewer automation honest without exposing raw restricted payloads."
             />
             <div className="ops-grid">
-              {monitoringSignals.map((signal) => (
+              {workspace.monitoringSignals.map((signal) => (
                 <SignalCard key={signal.name} {...signal} />
               ))}
             </div>
@@ -436,7 +478,7 @@ export function App() {
                 <TonePill tone="info">Auditable</TonePill>
               </div>
               <ul className="event-list">
-                {opsEvents.map((event) => (
+                {workspace.opsEvents.map((event) => (
                   <li key={event.time + event.title} className="event-list__item">
                     <span className="event-time">{event.time}</span>
                     <div>

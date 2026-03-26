@@ -11,98 +11,41 @@ const providerKind = v.union(
 
 const reviewCommentVisibility = v.union(v.literal("internal"), v.literal("public"));
 
-async function getOrCreateWorkspace(ctx: any) {
-  const existing = await ctx.db
-    .query("workspaces")
-    .withIndex("by_slug", (query: any) => query.eq("slug", "lifeos"))
-    .first();
+type ReviewDocument = {
+  _id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  title?: string;
+  repository?: string;
+  pullRequestNumber?: number;
+  pullRequestUrl?: string;
+  headSha?: string;
+  baseSha?: string;
+  author?: string;
+  draft?: boolean;
+  eventType?: string;
+  deliveryId?: string;
+  idempotencyKey?: string;
+  provider?: "github";
+  publication?: {
+    inlineCommentUrls: readonly string[];
+    [key: string]: unknown;
+  };
+  execution?: unknown;
+  comments?: unknown;
+  [key: string]: unknown;
+};
 
-  if (existing) {
-    return existing._id;
-  }
-
-  return ctx.db.insert("workspaces", {
-    slug: "lifeos",
-    name: "LifeOS",
-    createdBy: "system:lifeos-reviewer",
-  });
-}
-
-async function getOrCreateReviewProvider(ctx: any, workspaceId: any, kind: "github" | "codex") {
-  const key = `${kind}-dogfood`;
-  const existing = await ctx.db
-    .query("reviewProviders")
-    .withIndex("by_workspace_key", (query: any) =>
-      query.eq("workspaceId", workspaceId).eq("key", key),
-    )
-    .first();
-
-  if (existing) {
-    return existing._id;
-  }
-
-  return ctx.db.insert("reviewProviders", {
-    workspaceId,
-    key,
-    name: kind === "github" ? "GitHub Dogfood" : "Codex Dogfood",
-    kind,
-    status: "active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-async function getOrCreateReviewPolicy(ctx: any, workspaceId: any, reviewProviderId: any) {
-  const existing = await ctx.db
-    .query("reviewPolicies")
-    .withIndex("by_workspace_key", (query: any) =>
-      query.eq("workspaceId", workspaceId).eq("key", "lifeos-reviewer-dogfood"),
-    )
-    .first();
-
-  if (existing) {
-    return existing._id;
-  }
-
-  return ctx.db.insert("reviewPolicies", {
-    workspaceId,
-    key: "lifeos-reviewer-dogfood",
-    name: "LifeOS Reviewer Dogfood PR Review",
-    scopeKind: "workspace",
-    mode: "advisory",
-    targetKind: "pull_request",
-    reviewProviderId,
-    minBlockingSeverity: "high",
-    requiresHumanApproval: false,
-    status: "active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-async function getOrCreateReviewerIdentity(ctx: any, workspaceId: any, reviewProviderId: any) {
-  const existing = await ctx.db
-    .query("reviewerIdentities")
-    .withIndex("by_workspace_handle", (query: any) =>
-      query.eq("workspaceId", workspaceId).eq("handle", "lifeos-reviewer"),
-    )
-    .first();
-
-  if (existing) {
-    return existing._id;
-  }
-
-  return ctx.db.insert("reviewerIdentities", {
-    workspaceId,
-    reviewProviderId,
-    externalId: "lifeos-reviewer",
-    displayName: "LifeOS Reviewer",
-    handle: "lifeos-reviewer",
-    kind: "system",
-    status: "active",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
+function toReviewJobSnapshot(job: ReviewDocument) {
+  const { _id, comments: _comments, ...rest } = job;
+  return {
+    ...rest,
+    id: _id,
+    publication: rest.publication ?? {
+      inlineCommentUrls: [],
+    },
+  };
 }
 
 export const upsertGithubPullRequestReviewJob = mutationGeneric({
@@ -126,6 +69,97 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
     created: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    const getOrCreateWorkspace = async () => {
+      const existing = await ctx.db
+        .query("workspaces")
+        .withIndex("by_slug", (query) => query.eq("slug", "lifeos"))
+        .first();
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("workspaces", {
+        slug: "lifeos",
+        name: "LifeOS",
+        createdBy: "system:lifeos-reviewer",
+      });
+    };
+
+    const getOrCreateReviewProvider = async (workspaceId: string, kind: "github" | "codex") => {
+      const key = `${kind}-dogfood`;
+      const existing = await ctx.db
+        .query("reviewProviders")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
+        .collect()
+        .then((providers) => providers.find((provider) => provider.key === key));
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("reviewProviders", {
+        workspaceId,
+        key,
+        name: kind === "github" ? "GitHub Dogfood" : "Codex Dogfood",
+        kind,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    const getOrCreateReviewPolicy = async (workspaceId: string, reviewProviderId: string) => {
+      const existing = await ctx.db
+        .query("reviewPolicies")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
+        .collect()
+        .then((policies) => policies.find((policy) => policy.key === "lifeos-reviewer-dogfood"));
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("reviewPolicies", {
+        workspaceId,
+        key: "lifeos-reviewer-dogfood",
+        name: "LifeOS Reviewer Dogfood PR Review",
+        scopeKind: "workspace",
+        mode: "advisory",
+        targetKind: "pull_request",
+        reviewProviderId,
+        minBlockingSeverity: "high",
+        requiresHumanApproval: false,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    const getOrCreateReviewerIdentity = async (workspaceId: string, reviewProviderId: string) => {
+      const existing = await ctx.db
+        .query("reviewerIdentities")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
+        .collect()
+        .then((identities) => identities.find((identity) => identity.handle === "lifeos-reviewer"));
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("reviewerIdentities", {
+        workspaceId,
+        reviewProviderId,
+        externalId: "lifeos-reviewer",
+        displayName: "LifeOS Reviewer",
+        handle: "lifeos-reviewer",
+        kind: "system",
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
     const existing = await ctx.db
       .query("reviewJobs")
       .withIndex("by_idempotency_key", (query) => query.eq("idempotencyKey", args.idempotencyKey))
@@ -149,32 +183,38 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
       };
     }
 
-    const workspaceId = await getOrCreateWorkspace(ctx);
-    const reviewProviderId = await getOrCreateReviewProvider(ctx, workspaceId, "github");
-    const reviewPolicyId = await getOrCreateReviewPolicy(ctx, workspaceId, reviewProviderId);
-    const reviewerIdentityId = await getOrCreateReviewerIdentity(ctx, workspaceId, reviewProviderId);
+    const workspaceId = await getOrCreateWorkspace();
+    const reviewProviderId = await getOrCreateReviewProvider(workspaceId, "github");
+    const reviewPolicyId = await getOrCreateReviewPolicy(workspaceId, reviewProviderId);
+    const reviewerIdentityId = await getOrCreateReviewerIdentity(workspaceId, reviewProviderId);
     const createdAt = new Date().toISOString();
 
     const reviewJobId = await ctx.db.insert("reviewJobs", {
       workspaceId,
       reviewPolicyId,
       reviewProviderId,
+      provider: "github",
+      deliveryId: args.deliveryId,
+      eventType: args.eventType,
+      idempotencyKey: args.idempotencyKey,
+      repository: args.repository,
+      pullRequestNumber: args.pullRequestNumber,
+      pullRequestTitle: args.pullRequestTitle,
+      pullRequestUrl: args.pullRequestUrl,
+      headSha: args.headSha,
+      baseSha: args.baseSha,
+      action: args.action,
+      draft: args.draft,
+      author: args.author,
       requestedByReviewerIdentityId: reviewerIdentityId,
       targetKind: "pull_request",
       targetRef: `${args.repository}#${args.pullRequestNumber}`,
       title: args.pullRequestTitle,
       priority: "normal",
       status: "queued",
-      deliveryId: args.deliveryId,
-      eventType: args.eventType,
-      idempotencyKey: args.idempotencyKey,
-      repository: args.repository,
-      pullRequestNumber: args.pullRequestNumber,
-      pullRequestUrl: args.pullRequestUrl,
-      headSha: args.headSha,
-      baseSha: args.baseSha,
-      author: args.author,
-      draft: args.draft,
+      publication: {
+        inlineCommentUrls: [],
+      },
       createdAt,
       updatedAt: createdAt,
     });
@@ -198,6 +238,17 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
       runId,
       created: true,
     };
+  },
+});
+
+export const listReviewJobs = queryGeneric({
+  args: {},
+  returns: v.array(v.any()),
+  handler: async (ctx) => {
+    const jobs = await ctx.db.query("reviewJobs").collect();
+    return jobs
+      .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? ""))
+      .map(toReviewJobSnapshot);
   },
 });
 
@@ -225,7 +276,8 @@ export const listQueuedReviewJobs = queryGeneric({
 
     return jobs
       .filter(
-        (job) => job.status === "queued" && job.repository && job.pullRequestNumber && job.pullRequestUrl,
+        (job) =>
+          job.status === "queued" && job.repository && job.pullRequestNumber && job.pullRequestUrl,
       )
       .map((job) => ({
         id: job._id,
@@ -253,18 +305,23 @@ export const getReviewJob = queryGeneric({
     v.null(),
     v.object({
       id: v.id("reviewJobs"),
+      provider: v.optional(v.literal("github")),
       repository: v.optional(v.string()),
       pullRequestNumber: v.optional(v.number()),
       pullRequestTitle: v.string(),
       pullRequestUrl: v.optional(v.string()),
       headSha: v.optional(v.string()),
       baseSha: v.optional(v.string()),
+      deliveryId: v.optional(v.string()),
+      eventType: v.optional(v.string()),
+      idempotencyKey: v.optional(v.string()),
       author: v.optional(v.string()),
       draft: v.optional(v.boolean()),
-      eventType: v.optional(v.string()),
       status: v.string(),
       createdAt: v.string(),
       updatedAt: v.string(),
+      execution: v.optional(v.any()),
+      publication: v.optional(v.any()),
       comments: v.array(
         v.object({
           id: v.id("reviewComments"),
@@ -288,18 +345,25 @@ export const getReviewJob = queryGeneric({
 
     return {
       id: job._id,
+      provider: job.provider,
       repository: job.repository,
       pullRequestNumber: job.pullRequestNumber,
       pullRequestTitle: job.title,
       pullRequestUrl: job.pullRequestUrl,
       headSha: job.headSha,
       baseSha: job.baseSha,
+      deliveryId: job.deliveryId,
+      eventType: job.eventType,
+      idempotencyKey: job.idempotencyKey,
       author: job.author,
       draft: job.draft,
-      eventType: job.eventType,
       status: job.status,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
+      execution: job.execution,
+      publication: job.publication ?? {
+        inlineCommentUrls: [],
+      },
       comments: comments.map((comment) => ({
         id: comment._id,
         body: comment.body,
@@ -307,6 +371,61 @@ export const getReviewJob = queryGeneric({
         createdAt: comment.createdAt,
       })),
     };
+  },
+});
+
+export const replaceReviewJobState = mutationGeneric({
+  args: {
+    reviewJobId: v.id("reviewJobs"),
+    job: v.any(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const {
+      id: _ignored,
+      comments: _comments,
+      ...job
+    } = args.job as {
+      id?: string;
+      comments?: unknown;
+      [key: string]: unknown;
+    };
+
+    const patch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(job)) {
+      if (value !== undefined) {
+        patch[key] = value;
+      }
+    }
+
+    await ctx.db.patch(args.reviewJobId, patch);
+    return null;
+  },
+});
+
+export const resetReviewStateForTests = mutationGeneric({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const tableNames = [
+      "reviewComments",
+      "reviewFindings",
+      "reviewJobs",
+      "reviewPolicies",
+      "reviewProviders",
+      "reviewRuns",
+      "reviewerIdentities",
+      "workspaces",
+    ] as const;
+
+    for (const tableName of tableNames) {
+      const docs = await ctx.db.query(tableName).collect();
+      for (const doc of docs) {
+        await ctx.db.delete(doc._id);
+      }
+    }
+
+    return null;
   },
 });
 
