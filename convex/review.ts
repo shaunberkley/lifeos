@@ -20,6 +20,23 @@ const providerKind = v.union(
   v.literal("manual"),
 );
 
+/**
+ * Default workspace and provider identifiers.
+ * Extracted as constants to avoid magic strings scattered across mutations.
+ * These can be overridden by passing explicit values in mutation args.
+ */
+const DEFAULTS = {
+  WORKSPACE_SLUG: "lifeos",
+  WORKSPACE_NAME: "LifeOS",
+  WORKSPACE_CREATED_BY: "system:lifeos-reviewer",
+  PROVIDER_SUFFIX: "dogfood",
+  POLICY_KEY: "lifeos-reviewer-dogfood",
+  POLICY_NAME: "LifeOS Reviewer Dogfood PR Review",
+  IDENTITY_HANDLE: "lifeos-reviewer",
+  IDENTITY_DISPLAY_NAME: "LifeOS Reviewer",
+  RUNNER_VERSION: "lifeos-reviewer-codex-mvp",
+} as const;
+
 const reviewCommentVisibility = v.union(v.literal("internal"), v.literal("public"));
 
 type ReviewDocument = {
@@ -85,7 +102,7 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
     const getOrCreateWorkspace = async () => {
       const existing = await ctx.db
         .query("workspaces")
-        .withIndex("by_slug", (query) => query.eq("slug", "lifeos"))
+        .withIndex("by_slug", (query) => query.eq("slug", DEFAULTS.WORKSPACE_SLUG))
         .first();
 
       if (existing) {
@@ -93,14 +110,14 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
       }
 
       return ctx.db.insert("workspaces", {
-        slug: "lifeos",
-        name: "LifeOS",
-        createdBy: "system:lifeos-reviewer",
+        slug: DEFAULTS.WORKSPACE_SLUG,
+        name: DEFAULTS.WORKSPACE_NAME,
+        createdBy: DEFAULTS.WORKSPACE_CREATED_BY,
       });
     };
 
     const getOrCreateReviewProvider = async (workspaceId: string, kind: "github" | "codex") => {
-      const key = `${kind}-dogfood`;
+      const key = `${kind}-${DEFAULTS.PROVIDER_SUFFIX}`;
       const existing = await ctx.db
         .query("reviewProviders")
         .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
@@ -114,7 +131,7 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
       return ctx.db.insert("reviewProviders", {
         workspaceId,
         key,
-        name: kind === "github" ? "GitHub Dogfood" : "Codex Dogfood",
+        name: `${kind === "github" ? "GitHub" : "Codex"} ${DEFAULTS.PROVIDER_SUFFIX}`,
         kind,
         status: "active",
         createdAt: new Date().toISOString(),
@@ -127,7 +144,7 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
         .query("reviewPolicies")
         .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
         .collect()
-        .then((policies) => policies.find((policy) => policy.key === "lifeos-reviewer-dogfood"));
+        .then((policies) => policies.find((policy) => policy.key === DEFAULTS.POLICY_KEY));
 
       if (existing) {
         return existing._id;
@@ -135,8 +152,8 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
 
       return ctx.db.insert("reviewPolicies", {
         workspaceId,
-        key: "lifeos-reviewer-dogfood",
-        name: "LifeOS Reviewer Dogfood PR Review",
+        key: DEFAULTS.POLICY_KEY,
+        name: DEFAULTS.POLICY_NAME,
         scopeKind: "workspace",
         mode: "advisory",
         targetKind: "pull_request",
@@ -154,7 +171,7 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
         .query("reviewerIdentities")
         .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
         .collect()
-        .then((identities) => identities.find((identity) => identity.handle === "lifeos-reviewer"));
+        .then((identities) => identities.find((identity) => identity.handle === DEFAULTS.IDENTITY_HANDLE));
 
       if (existing) {
         return existing._id;
@@ -163,9 +180,9 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
       return ctx.db.insert("reviewerIdentities", {
         workspaceId,
         reviewProviderId,
-        externalId: "lifeos-reviewer",
-        displayName: "LifeOS Reviewer",
-        handle: "lifeos-reviewer",
+        externalId: DEFAULTS.IDENTITY_HANDLE,
+        displayName: DEFAULTS.IDENTITY_DISPLAY_NAME,
+        handle: DEFAULTS.IDENTITY_HANDLE,
         kind: "system",
         status: "active",
         createdAt: new Date().toISOString(),
@@ -238,7 +255,7 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
       reviewProviderId,
       reviewerIdentityId,
       attemptNumber: 1,
-      runnerVersion: "lifeos-reviewer-codex-mvp",
+      runnerVersion: DEFAULTS.RUNNER_VERSION,
       status: "queued",
       startedAt: createdAt,
       summary: undefined,
