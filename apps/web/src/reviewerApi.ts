@@ -53,9 +53,9 @@ type ApiListResponse<T> = {
 } & T;
 
 function getEnvironmentBaseUrl() {
-  const environment = import.meta.env as ImportMetaEnv & {
-    readonly VITE_LIFEOS_API_URL?: string;
-  };
+  // Vite injects env at runtime; type-safe access requires the cast through unknown
+  const meta = import.meta as unknown as { env: Record<string, string | undefined> };
+  const environment = meta.env;
   const override = environment.VITE_LIFEOS_API_URL?.trim();
 
   if (override) {

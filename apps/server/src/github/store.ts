@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import type { GitHubProviderStatus, GitHubReviewJob, GitHubReviewJobDraft } from "./types";
 
@@ -56,57 +55,49 @@ function clearReviewState() {
   durableReviewStateHydrated = false;
 }
 
-function callConvex<T>(kind: "query" | "mutation", functionName: string, args: unknown): T {
-  const result = spawnSync(
-    process.execPath,
-    [
-      "--input-type=module",
-      "-e",
-      `
-import fs from "node:fs";
-import { ConvexHttpClient } from "convex/browser";
-import { makeFunctionReference } from "convex/server";
-
-const url = process.env.CONVEX_URL?.trim();
-if (!url) {
-  throw new Error("Missing CONVEX_URL for durable review state.");
-}
-
-const input = fs.readFileSync(0, "utf8");
-const args = input ? JSON.parse(input) : {};
-const client = new ConvexHttpClient(url, { logger: false, skipConvexDeploymentUrlCheck: true });
-const fn = makeFunctionReference(${JSON.stringify(functionName)});
-const value = await client.${kind}(fn, args);
-process.stdout.write(JSON.stringify(value));
-      `.trim(),
-    ],
-    {
-      encoding: "utf8",
-      env: {
-        ...process.env,
-      },
-      input: JSON.stringify(args),
-    },
-  );
-
-  if (result.status !== 0) {
-    throw new Error(
-      [`Convex ${kind} ${functionName} failed.`, result.stderr?.trim(), result.stdout?.trim()]
-        .filter(Boolean)
-        .join("\n"),
-    );
+/**
+ * Call a Convex function via the HTTP API.
+ * Replaces the previous subprocess-spawning approach which had code injection risks.
+ */
+async function callConvex<T>(
+  kind: "query" | "mutation",
+  functionName: string,
+  args: unknown,
+): Promise<T> {
+  const url = process.env.CONVEX_URL?.trim();
+  if (!url) {
+    throw new Error("Missing CONVEX_URL for durable review state.");
   }
 
-  const stdout = result.stdout.trim();
-  return stdout ? (JSON.parse(stdout) as T) : (undefined as T);
+  const endpoint = `${url}/api/${kind}`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: functionName,
+      args: args ?? {},
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Convex ${kind} ${functionName} failed (${response.status}): ${body}`);
+  }
+
+  const result = await response.json();
+  return result.value as T;
 }
 
-function hydrateDurableState() {
+async function hydrateDurableState(): Promise<void> {
   if (!hasDurableReviewState()) {
     return;
   }
 
-  const reviewJobs = callConvex<readonly GitHubReviewJob[]>("query", "review:listReviewJobs", {});
+  const reviewJobs = await callConvex<readonly GitHubReviewJob[]>(
+    "query",
+    "review:listReviewJobs",
+    {},
+  );
   clearReviewState();
 
   for (const reviewJob of reviewJobs) {
@@ -116,17 +107,17 @@ function hydrateDurableState() {
   durableReviewStateHydrated = true;
 }
 
-function ensureDurableStateHydrated() {
+async function ensureDurableStateHydrated(): Promise<void> {
   if (!hasDurableReviewState()) {
     return;
   }
 
   if (!durableReviewStateHydrated) {
-    hydrateDurableState();
+    await hydrateDurableState();
   }
 }
 
-function saveReviewJob(reviewJob: GitHubReviewJob) {
+async function saveReviewJob(reviewJob: GitHubReviewJob): Promise<void> {
   if (!hasDurableReviewState()) {
     applyReviewJob(reviewJob);
     return;
@@ -136,41 +127,41 @@ function saveReviewJob(reviewJob: GitHubReviewJob) {
     readonly comments?: unknown;
   };
 
-  callConvex<null>("mutation", "review:replaceReviewJobState", {
+  await callConvex<null>("mutation", "review:replaceReviewJobState", {
     reviewJobId: reviewJob.id,
     job,
   });
   applyReviewJob(reviewJob);
 }
 
-export function resetReviewStateForTests() {
+export async function resetReviewStateForTests(): Promise<void> {
   clearReviewState();
 
   if (!hasDurableReviewState()) {
     return;
   }
 
-  callConvex<null>("mutation", "review:resetReviewStateForTests", {});
+  await callConvex<null>("mutation", "review:resetReviewStateForTests", {});
 }
 
-export function listReviewJobs() {
-  ensureDurableStateHydrated();
+export async function listReviewJobs(): Promise<readonly GitHubReviewJob[]> {
+  await ensureDurableStateHydrated();
 
   return [...state.reviews.jobsById.values()].sort((left, right) =>
     left.createdAt.localeCompare(right.createdAt),
   );
 }
 
-export function getReviewJob(reviewId: string) {
-  ensureDurableStateHydrated();
+export async function getReviewJob(reviewId: string): Promise<GitHubReviewJob | undefined> {
+  await ensureDurableStateHydrated();
   return state.reviews.jobsById.get(reviewId);
 }
 
-export function enqueueReviewJob(
+export async function enqueueReviewJob(
   draft: GitHubReviewJobDraft,
   now = () => new Date().toISOString(),
-) {
-  ensureDurableStateHydrated();
+): Promise<GitHubReviewJob | undefined> {
+  await ensureDurableStateHydrated();
 
   const existingId = state.reviews.idByIdempotencyKey.get(draft.idempotencyKey);
   if (existingId) {
@@ -193,12 +184,12 @@ export function enqueueReviewJob(
     return job;
   }
 
-  const result = callConvex<{ reviewId: string; runId: string; created: boolean }>(
+  const result = await callConvex<{ reviewId: string; runId: string; created: boolean }>(
     "mutation",
     "review:upsertGithubPullRequestReviewJob",
     draft,
   );
-  const job = callConvex<GitHubReviewJob | null>("query", "review:getReviewJob", {
+  const job = await callConvex<GitHubReviewJob | null>("query", "review:getReviewJob", {
     reviewJobId: result.reviewId,
   });
 
@@ -211,11 +202,11 @@ export function enqueueReviewJob(
   return normalizedJob;
 }
 
-export function updateReviewJob(
+export async function updateReviewJob(
   reviewId: string,
   updater: (job: GitHubReviewJob) => GitHubReviewJob,
-) {
-  ensureDurableStateHydrated();
+): Promise<GitHubReviewJob | undefined> {
+  await ensureDurableStateHydrated();
 
   const current = state.reviews.jobsById.get(reviewId);
   if (!current) {
@@ -223,7 +214,7 @@ export function updateReviewJob(
   }
 
   const updated = updater(current);
-  saveReviewJob(updated);
+  await saveReviewJob(updated);
   return updated;
 }
 

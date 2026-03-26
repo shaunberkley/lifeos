@@ -94,7 +94,7 @@ export async function executeReviewJob(
   repositoryRoot = process.cwd(),
   dependencies: ReviewExecutionDependencies = {},
 ) {
-  const job = getReviewJob(reviewId);
+  const job = await getReviewJob(reviewId);
   if (!job) {
     throw new AppError({
       code: "not_found",
@@ -108,7 +108,7 @@ export async function executeReviewJob(
   }
 
   const startedAt = new Date().toISOString();
-  updateReviewJob(reviewId, (current) => ({
+  await updateReviewJob(reviewId, (current) => ({
     ...current,
     status: "running",
     updatedAt: startedAt,
@@ -149,7 +149,7 @@ export async function executeReviewJob(
     );
     const finishedAt = new Date().toISOString();
 
-    updateReviewJob(reviewId, (current) => ({
+    await updateReviewJob(reviewId, (current) => ({
       ...current,
       status: "published",
       updatedAt: finishedAt,
@@ -181,7 +181,7 @@ export async function executeReviewJob(
     const finishedAt = new Date().toISOString();
     const message = error instanceof Error ? error.message : "Unknown review execution error.";
 
-    updateReviewJob(reviewId, (current) => ({
+    await updateReviewJob(reviewId, (current) => ({
       ...current,
       status: "failed",
       updatedAt: finishedAt,

@@ -6,7 +6,9 @@ import type { GitHubPublishResult, GitHubPublishReviewRequest, GitHubReviewJob }
 import type { GitHubPullRequestReviewEvent } from "./webhook";
 
 export type ReviewOrchestrator = {
-  readonly enqueueGitHubPullRequestReview: (event: GitHubPullRequestReviewEvent) => GitHubReviewJob;
+  readonly enqueueGitHubPullRequestReview: (
+    event: GitHubPullRequestReviewEvent,
+  ) => Promise<GitHubReviewJob>;
   readonly listReviewJobs: typeof listReviewJobs;
   readonly getReviewJob: typeof getReviewJob;
   readonly publishReviewJob: (
@@ -17,7 +19,7 @@ export type ReviewOrchestrator = {
 
 export function createReviewOrchestrator(now = () => new Date().toISOString()): ReviewOrchestrator {
   return {
-    enqueueGitHubPullRequestReview(event) {
+    async enqueueGitHubPullRequestReview(event) {
       const draft = {
         provider: "github" as const,
         deliveryId: event.deliveryId,
@@ -34,7 +36,7 @@ export function createReviewOrchestrator(now = () => new Date().toISOString()): 
         eventType: event.eventType,
       };
 
-      const reviewJob = enqueueReviewJob(draft, now);
+      const reviewJob = await enqueueReviewJob(draft, now);
       if (!reviewJob) {
         throw new ServiceUnavailableError("Failed to queue GitHub review job.", {
           eventType: event.eventType,
@@ -47,7 +49,7 @@ export function createReviewOrchestrator(now = () => new Date().toISOString()): 
     listReviewJobs,
     getReviewJob,
     async publishReviewJob(reviewId, request) {
-      const job = getReviewJob(reviewId);
+      const job = await getReviewJob(reviewId);
 
       if (!job) {
         throw new AppError({
@@ -64,7 +66,7 @@ export function createReviewOrchestrator(now = () => new Date().toISOString()): 
       const publisher = createGitHubPublishService(getGitHubPublishEnvironment());
       const publication = await publisher.publishReview(job, request);
 
-      const updated = updateReviewJob(reviewId, (current) => ({
+      const updated = await updateReviewJob(reviewId, (current) => ({
         ...current,
         status: "published",
         updatedAt: now(),

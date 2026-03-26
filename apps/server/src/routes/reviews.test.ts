@@ -8,7 +8,7 @@ function setGitHubPublishEnvironment() {
   process.env.GITHUB_TOKEN = "github-token";
 }
 
-function createQueuedReview() {
+async function createQueuedReview() {
   const orchestrator = createReviewOrchestrator(() => "2026-03-24T20:00:00.000Z");
 
   return orchestrator.enqueueGitHubPullRequestReview({
@@ -30,19 +30,19 @@ function createQueuedReview() {
 }
 
 describe("review routes", () => {
-  beforeEach(() => {
-    resetReviewStateForTests();
+  beforeEach(async () => {
+    await resetReviewStateForTests();
   });
 
-  afterEach(() => {
-    resetReviewStateForTests();
+  afterEach(async () => {
+    await resetReviewStateForTests();
     process.env.GITHUB_REPOSITORY = undefined;
     process.env.GITHUB_TOKEN = undefined;
     vi.restoreAllMocks();
   });
 
   it("lists and retrieves queued reviews", async () => {
-    const review = createQueuedReview();
+    const review = await createQueuedReview();
 
     const listResponse = await reviewsRoute.request("http://lifeos.test/", {
       method: "GET",
@@ -68,7 +68,7 @@ describe("review routes", () => {
 
   it("publishes inline and summary review comments", async () => {
     setGitHubPublishEnvironment();
-    const review = createQueuedReview();
+    const review = await createQueuedReview();
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((async (input) => {
       const url = String(input);
@@ -130,7 +130,8 @@ describe("review routes", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(getReviewJob(review.id)).toMatchObject({
+    const finalJob = await getReviewJob(review.id);
+    expect(finalJob).toMatchObject({
       status: "published",
       publication: {
         summaryCommentUrl:
@@ -143,7 +144,7 @@ describe("review routes", () => {
   });
 
   it("returns execution metadata when present on a review", async () => {
-    const review = createQueuedReview();
+    const review = await createQueuedReview();
 
     const detailResponse = await reviewsRoute.request(`http://lifeos.test/${review.id}`, {
       method: "GET",

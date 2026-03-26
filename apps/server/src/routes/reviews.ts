@@ -117,14 +117,14 @@ function parsePublishRequest(input: unknown): GitHubPublishReviewRequest {
 }
 
 export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
-  .get("/", (c) => {
+  .get("/", async (c) => {
     const logger = c.get("logger") ?? fallbackLogger;
 
     try {
       const orchestrator = createReviewOrchestrator();
       return c.json({
         ok: true,
-        reviews: orchestrator.listReviewJobs(),
+        reviews: await orchestrator.listReviewJobs(),
       });
     } catch (error) {
       logger.error("review list request failed", { error });
@@ -136,12 +136,12 @@ export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
       );
     }
   })
-  .get("/:reviewId", (c) => {
+  .get("/:reviewId", async (c) => {
     const logger = c.get("logger") ?? fallbackLogger;
 
     try {
       const orchestrator = createReviewOrchestrator();
-      const review = orchestrator.getReviewJob(c.req.param("reviewId"));
+      const review = await orchestrator.getReviewJob(c.req.param("reviewId"));
 
       if (!review) {
         throw createNotFoundError("Review job not found.", {
@@ -180,7 +180,7 @@ export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
 
       const request = parsePublishRequest(body);
       const publication = await orchestrator.publishReviewJob(reviewId, request);
-      const review = orchestrator.getReviewJob(reviewId);
+      const review = await orchestrator.getReviewJob(reviewId);
 
       return c.json({
         ok: true,
@@ -204,7 +204,7 @@ export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
       const reviewId = c.req.param("reviewId");
       const result = await executeReviewJob(reviewId);
       const orchestrator = createReviewOrchestrator();
-      const review = orchestrator.getReviewJob(reviewId);
+      const review = await orchestrator.getReviewJob(reviewId);
 
       return c.json({
         ok: true,

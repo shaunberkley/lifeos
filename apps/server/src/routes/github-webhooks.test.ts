@@ -50,13 +50,13 @@ function buildPullRequestPayload(action: string) {
 }
 
 describe("github webhook route", () => {
-  beforeEach(() => {
-    resetReviewStateForTests();
+  beforeEach(async () => {
+    await resetReviewStateForTests();
     setGitHubWebhookEnvironment();
   });
 
-  afterEach(() => {
-    resetReviewStateForTests();
+  afterEach(async () => {
+    await resetReviewStateForTests();
     process.env.GITHUB_WEBHOOK_SECRET = undefined;
     process.env.GITHUB_REPOSITORY = undefined;
   });
@@ -84,9 +84,10 @@ describe("github webhook route", () => {
       reviewId: expect.any(String),
     });
 
-    const jobs = listReviewJobs();
+    const jobs = await listReviewJobs();
     expect(jobs).toHaveLength(1);
-    expect(getReviewJob(jobs[0]?.id ?? "")).toMatchObject({
+    const firstJob = await getReviewJob(jobs[0]?.id ?? "");
+    expect(firstJob).toMatchObject({
       repository: "shaunberkley/lifeos",
       pullRequestNumber: 17,
       eventType: "github.pull_request.opened",
@@ -114,7 +115,7 @@ describe("github webhook route", () => {
       error: "policy_violation",
       message: "GitHub webhook signature verification failed.",
     });
-    expect(listReviewJobs()).toHaveLength(0);
+    expect(await listReviewJobs()).toHaveLength(0);
   });
 
   it("ignores unsupported pull request actions without queuing work", async () => {
@@ -138,6 +139,6 @@ describe("github webhook route", () => {
       reason: "unsupported_action",
       action: "closed",
     });
-    expect(listReviewJobs()).toHaveLength(0);
+    expect(await listReviewJobs()).toHaveLength(0);
   });
 });

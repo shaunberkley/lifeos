@@ -3,6 +3,11 @@ import { listQueuedReviewJobs } from "./review";
 
 function createCtx(reviewJobs: readonly Record<string, unknown>[]) {
   return {
+    auth: {
+      async getUserIdentity() {
+        return { subject: "test-user", tokenIdentifier: "test" };
+      },
+    },
     db: {
       query(tableName: string) {
         if (tableName !== "reviewJobs") {

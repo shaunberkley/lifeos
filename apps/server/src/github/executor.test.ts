@@ -3,7 +3,7 @@ import { executeReviewJob } from "./executor";
 import { enqueueReviewJob, getReviewJob, resetReviewStateForTests } from "./store";
 import type { GitHubReviewJobDraft } from "./types";
 
-function createQueuedJob(overrides: Partial<GitHubReviewJobDraft> = {}) {
+async function createQueuedJob(overrides: Partial<GitHubReviewJobDraft> = {}) {
   return enqueueReviewJob(
     {
       provider: "github",
@@ -27,8 +27,8 @@ function createQueuedJob(overrides: Partial<GitHubReviewJobDraft> = {}) {
 
 describe("executeReviewJob", () => {
   it("publishes inline comments against the live pull request head sha", async () => {
-    resetReviewStateForTests();
-    const job = createQueuedJob();
+    await resetReviewStateForTests();
+    const job = await createQueuedJob();
     expect(job).toBeDefined();
     const reviewId = job?.id;
 
@@ -57,6 +57,9 @@ describe("executeReviewJob", () => {
         },
         async readDiff() {
           return "diff --git";
+        },
+        async resolveRepository() {
+          return "shaunberkley/lifeos";
         },
       },
       runner: {
@@ -91,7 +94,8 @@ describe("executeReviewJob", () => {
       }),
       expect.any(Object),
     );
-    expect(getReviewJob(reviewId)).toMatchObject({
+    const finalJob = await getReviewJob(reviewId);
+    expect(finalJob).toMatchObject({
       status: "published",
       publication: {
         summaryCommentUrl: "https://example.test/summary",

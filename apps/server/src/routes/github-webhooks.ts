@@ -103,7 +103,7 @@ export const githubWebhooksRoute = new Hono<{ Variables: AppVariables }>().post(
       }
 
       const orchestrator = createReviewOrchestrator();
-      const reviewJob = orchestrator.enqueueGitHubPullRequestReview(mappedEvent);
+      const reviewJob = await orchestrator.enqueueGitHubPullRequestReview(mappedEvent);
 
       logger.info("github review job queued", {
         data: {

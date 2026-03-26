@@ -13,6 +13,11 @@ type ReviewJobRow = {
 
 function createListCtx(reviewJobs: readonly ReviewJobRow[]) {
   return {
+    auth: {
+      async getUserIdentity() {
+        return { subject: "test-user", tokenIdentifier: "test" };
+      },
+    },
     db: {
       query(tableName: string) {
         if (tableName !== "reviewJobs") {
@@ -49,6 +54,9 @@ const listReviewJobsHandler = listReviewJobs as typeof listReviewJobs & {
 const replaceReviewJobStateHandler = replaceReviewJobState as typeof replaceReviewJobState & {
   _handler: (
     ctx: {
+      readonly auth: {
+        getUserIdentity: () => Promise<unknown>;
+      };
       readonly db: {
         readonly patch: (id: string, value: Record<string, unknown>) => Promise<void>;
       };
@@ -108,6 +116,11 @@ describe("Convex review persistence helpers", () => {
   it("patches review job state without writing undefined fields back", async () => {
     const patch = vi.fn();
     const ctx = {
+      auth: {
+        async getUserIdentity() {
+          return { subject: "test-user", tokenIdentifier: "test" };
+        },
+      },
       db: {
         patch,
       },
@@ -116,25 +129,20 @@ describe("Convex review persistence helpers", () => {
     await replaceReviewJobStateHandler._handler(ctx, {
       reviewJobId: "reviewJobs:1",
       job: {
-        id: "reviewJobs:1",
-        author: "shaunberkley",
-        comments: [],
-        execution: undefined,
+        status: "published",
+        updatedAt: "2026-03-24T20:03:00.000Z",
         publication: {
           inlineCommentUrls: ["https://example.test/summary"],
         },
-        status: "published",
-        updatedAt: "2026-03-24T20:03:00.000Z",
       },
     });
 
     expect(patch).toHaveBeenCalledWith("reviewJobs:1", {
-      author: "shaunberkley",
+      status: "published",
+      updatedAt: "2026-03-24T20:03:00.000Z",
       publication: {
         inlineCommentUrls: ["https://example.test/summary"],
       },
-      status: "published",
-      updatedAt: "2026-03-24T20:03:00.000Z",
     });
   });
 });
