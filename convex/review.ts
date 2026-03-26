@@ -1,6 +1,17 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
 
+/**
+ * Verify the caller is authenticated before allowing access to review data.
+ * Throws if no valid identity is present on the request context.
+ */
+async function requireAuth(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }): Promise<void> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Authentication required. No valid identity found.");
+  }
+}
+
 const providerKind = v.union(
   v.literal("codex"),
   v.literal("claude"),
@@ -69,6 +80,8 @@ export const upsertGithubPullRequestReviewJob = mutationGeneric({
     created: v.boolean(),
   }),
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     const getOrCreateWorkspace = async () => {
       const existing = await ctx.db
         .query("workspaces")
@@ -245,6 +258,8 @@ export const listReviewJobs = queryGeneric({
   args: {},
   returns: v.array(v.any()),
   handler: async (ctx) => {
+    await requireAuth(ctx);
+
     const jobs = await ctx.db.query("reviewJobs").collect();
     return jobs
       .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? ""))
@@ -272,6 +287,8 @@ export const listQueuedReviewJobs = queryGeneric({
     }),
   ),
   handler: async (ctx) => {
+    await requireAuth(ctx);
+
     const jobs = await ctx.db.query("reviewJobs").collect();
 
     return jobs
@@ -333,6 +350,8 @@ export const getReviewJob = queryGeneric({
     }),
   ),
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     const job = await ctx.db.get(args.reviewJobId);
     if (!job) {
       return null;
@@ -381,6 +400,8 @@ export const replaceReviewJobState = mutationGeneric({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     const {
       id: _ignored,
       comments: _comments,
@@ -407,6 +428,8 @@ export const resetReviewStateForTests = mutationGeneric({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    await requireAuth(ctx);
+
     const tableNames = [
       "reviewComments",
       "reviewFindings",
@@ -447,6 +470,8 @@ export const publishReviewResult = mutationGeneric({
     commentCount: v.number(),
   }),
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     const job = await ctx.db.get(args.reviewJobId);
     if (!job) {
       throw new Error("Review job not found.");
