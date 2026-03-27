@@ -1,0 +1,625 @@
+import { mutationGeneric, queryGeneric } from "convex/server";
+import { v } from "convex/values";
+
+/**
+ * Verify the caller is authenticated before allowing access to review data.
+ * Throws if no valid identity is present on the request context.
+ */
+async function requireAuth(ctx: { auth: { getUserIdentity: () => Promise<unknown> } }): Promise<void> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Authentication required. No valid identity found.");
+  }
+}
+
+const providerKind = v.union(
+  v.literal("codex"),
+  v.literal("claude"),
+  v.literal("cursor"),
+  v.literal("github"),
+  v.literal("manual"),
+);
+
+/**
+ * Default workspace and provider identifiers.
+ * Extracted as constants to avoid magic strings scattered across mutations.
+ * These can be overridden by passing explicit values in mutation args.
+ */
+const DEFAULTS = {
+  WORKSPACE_SLUG: "lifeos",
+  WORKSPACE_NAME: "LifeOS",
+  WORKSPACE_CREATED_BY: "system:lifeos-reviewer",
+  PROVIDER_SUFFIX: "dogfood",
+  POLICY_KEY: "lifeos-reviewer-dogfood",
+  POLICY_NAME: "LifeOS Reviewer Dogfood PR Review",
+  IDENTITY_HANDLE: "lifeos-reviewer",
+  IDENTITY_DISPLAY_NAME: "LifeOS Reviewer",
+  RUNNER_VERSION: "lifeos-reviewer-codex-mvp",
+} as const;
+
+const reviewCommentVisibility = v.union(v.literal("internal"), v.literal("public"));
+
+type ReviewDocument = {
+  _id: string;
+  createdAt?: string;
+  updatedAt?: string;
+  status?: string;
+  title?: string;
+  repository?: string;
+  pullRequestNumber?: number;
+  pullRequestUrl?: string;
+  headSha?: string;
+  baseSha?: string;
+  author?: string;
+  draft?: boolean;
+  eventType?: string;
+  deliveryId?: string;
+  idempotencyKey?: string;
+  provider?: "github";
+  publication?: {
+    inlineCommentUrls: readonly string[];
+    [key: string]: unknown;
+  };
+  execution?: unknown;
+  comments?: unknown;
+  [key: string]: unknown;
+};
+
+function toReviewJobSnapshot(job: ReviewDocument) {
+  const { _id, comments: _comments, ...rest } = job;
+  return {
+    ...rest,
+    id: _id,
+    publication: rest.publication ?? {
+      inlineCommentUrls: [],
+    },
+  };
+}
+
+export const upsertGithubPullRequestReviewJob = mutationGeneric({
+  args: {
+    repository: v.string(),
+    pullRequestNumber: v.number(),
+    pullRequestTitle: v.string(),
+    pullRequestUrl: v.string(),
+    headSha: v.string(),
+    baseSha: v.string(),
+    action: v.string(),
+    draft: v.boolean(),
+    author: v.string(),
+    deliveryId: v.string(),
+    eventType: v.string(),
+    idempotencyKey: v.string(),
+  },
+  returns: v.object({
+    reviewId: v.id("reviewJobs"),
+    runId: v.id("reviewRuns"),
+    created: v.boolean(),
+  }),
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const getOrCreateWorkspace = async () => {
+      const existing = await ctx.db
+        .query("workspaces")
+        .withIndex("by_slug", (query) => query.eq("slug", DEFAULTS.WORKSPACE_SLUG))
+        .first();
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("workspaces", {
+        slug: DEFAULTS.WORKSPACE_SLUG,
+        name: DEFAULTS.WORKSPACE_NAME,
+        createdBy: DEFAULTS.WORKSPACE_CREATED_BY,
+      });
+    };
+
+    const getOrCreateReviewProvider = async (workspaceId: string, kind: "github" | "codex") => {
+      const key = `${kind}-${DEFAULTS.PROVIDER_SUFFIX}`;
+      const existing = await ctx.db
+        .query("reviewProviders")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
+        .collect()
+        .then((providers) => providers.find((provider) => provider.key === key));
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("reviewProviders", {
+        workspaceId,
+        key,
+        name: `${kind === "github" ? "GitHub" : "Codex"} ${DEFAULTS.PROVIDER_SUFFIX}`,
+        kind,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    const getOrCreateReviewPolicy = async (workspaceId: string, reviewProviderId: string) => {
+      const existing = await ctx.db
+        .query("reviewPolicies")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
+        .collect()
+        .then((policies) => policies.find((policy) => policy.key === DEFAULTS.POLICY_KEY));
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("reviewPolicies", {
+        workspaceId,
+        key: DEFAULTS.POLICY_KEY,
+        name: DEFAULTS.POLICY_NAME,
+        scopeKind: "workspace",
+        mode: "advisory",
+        targetKind: "pull_request",
+        reviewProviderId,
+        minBlockingSeverity: "high",
+        requiresHumanApproval: false,
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    const getOrCreateReviewerIdentity = async (workspaceId: string, reviewProviderId: string) => {
+      const existing = await ctx.db
+        .query("reviewerIdentities")
+        .withIndex("by_workspace", (query) => query.eq("workspaceId", workspaceId))
+        .collect()
+        .then((identities) => identities.find((identity) => identity.handle === DEFAULTS.IDENTITY_HANDLE));
+
+      if (existing) {
+        return existing._id;
+      }
+
+      return ctx.db.insert("reviewerIdentities", {
+        workspaceId,
+        reviewProviderId,
+        externalId: DEFAULTS.IDENTITY_HANDLE,
+        displayName: DEFAULTS.IDENTITY_DISPLAY_NAME,
+        handle: DEFAULTS.IDENTITY_HANDLE,
+        kind: "system",
+        status: "active",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    };
+
+    const existing = await ctx.db
+      .query("reviewJobs")
+      .withIndex("by_idempotency_key", (query) => query.eq("idempotencyKey", args.idempotencyKey))
+      .first();
+
+    if (existing) {
+      const run = await ctx.db
+        .query("reviewRuns")
+        .withIndex("by_review_job", (query) => query.eq("reviewJobId", existing._id))
+        .order("desc")
+        .first();
+
+      if (!run) {
+        throw new Error("Review job exists without a review run.");
+      }
+
+      return {
+        reviewId: existing._id,
+        runId: run._id,
+        created: false,
+      };
+    }
+
+    const workspaceId = await getOrCreateWorkspace();
+    const reviewProviderId = await getOrCreateReviewProvider(workspaceId, "github");
+    const reviewPolicyId = await getOrCreateReviewPolicy(workspaceId, reviewProviderId);
+    const reviewerIdentityId = await getOrCreateReviewerIdentity(workspaceId, reviewProviderId);
+    const createdAt = new Date().toISOString();
+
+    const reviewJobId = await ctx.db.insert("reviewJobs", {
+      workspaceId,
+      reviewPolicyId,
+      reviewProviderId,
+      provider: "github",
+      deliveryId: args.deliveryId,
+      eventType: args.eventType,
+      idempotencyKey: args.idempotencyKey,
+      repository: args.repository,
+      pullRequestNumber: args.pullRequestNumber,
+      pullRequestTitle: args.pullRequestTitle,
+      pullRequestUrl: args.pullRequestUrl,
+      headSha: args.headSha,
+      baseSha: args.baseSha,
+      action: args.action,
+      draft: args.draft,
+      author: args.author,
+      requestedByReviewerIdentityId: reviewerIdentityId,
+      targetKind: "pull_request",
+      targetRef: `${args.repository}#${args.pullRequestNumber}`,
+      title: args.pullRequestTitle,
+      priority: "normal",
+      status: "queued",
+      publication: {
+        inlineCommentUrls: [],
+      },
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    const runId = await ctx.db.insert("reviewRuns", {
+      workspaceId,
+      reviewJobId,
+      reviewProviderId,
+      reviewerIdentityId,
+      attemptNumber: 1,
+      runnerVersion: DEFAULTS.RUNNER_VERSION,
+      status: "queued",
+      startedAt: createdAt,
+      summary: undefined,
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    return {
+      reviewId: reviewJobId,
+      runId,
+      created: true,
+    };
+  },
+});
+
+export const listReviewJobs = queryGeneric({
+  args: {},
+  returns: v.array(v.object({
+    id: v.string(),
+    status: v.optional(v.string()),
+    title: v.optional(v.string()),
+    repository: v.optional(v.string()),
+    pullRequestNumber: v.optional(v.number()),
+    pullRequestUrl: v.optional(v.string()),
+    headSha: v.optional(v.string()),
+    baseSha: v.optional(v.string()),
+    author: v.optional(v.string()),
+    draft: v.optional(v.boolean()),
+    eventType: v.optional(v.string()),
+    deliveryId: v.optional(v.string()),
+    idempotencyKey: v.optional(v.string()),
+    provider: v.optional(v.literal("github")),
+    createdAt: v.optional(v.string()),
+    updatedAt: v.optional(v.string()),
+    publication: v.optional(v.object({
+      summaryCommentUrl: v.optional(v.string()),
+      summaryCommentId: v.optional(v.number()),
+      publishedAt: v.optional(v.string()),
+      inlineCommentUrls: v.array(v.string()),
+    })),
+  })),
+  handler: async (ctx) => {
+    await requireAuth(ctx);
+
+    const jobs = await ctx.db.query("reviewJobs").collect();
+    return jobs
+      .sort((left, right) => (left.createdAt ?? "").localeCompare(right.createdAt ?? ""))
+      .map((job) => ({
+        id: job._id,
+        status: job.status,
+        title: job.title,
+        repository: job.repository,
+        pullRequestNumber: job.pullRequestNumber,
+        pullRequestUrl: job.pullRequestUrl,
+        headSha: job.headSha,
+        baseSha: job.baseSha,
+        author: job.author,
+        draft: job.draft,
+        eventType: job.eventType,
+        deliveryId: job.deliveryId,
+        idempotencyKey: job.idempotencyKey,
+        provider: job.provider,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        publication: job.publication ?? { inlineCommentUrls: [] },
+      }));
+  },
+});
+
+export const listQueuedReviewJobs = queryGeneric({
+  args: {},
+  returns: v.array(
+    v.object({
+      id: v.id("reviewJobs"),
+      repository: v.string(),
+      pullRequestNumber: v.number(),
+      pullRequestTitle: v.string(),
+      pullRequestUrl: v.string(),
+      headSha: v.string(),
+      baseSha: v.string(),
+      author: v.string(),
+      draft: v.boolean(),
+      eventType: v.optional(v.string()),
+      status: v.string(),
+      createdAt: v.string(),
+      updatedAt: v.string(),
+    }),
+  ),
+  handler: async (ctx) => {
+    await requireAuth(ctx);
+
+    const jobs = await ctx.db.query("reviewJobs").collect();
+
+    return jobs
+      .filter(
+        (job) =>
+          job.status === "queued" && job.repository && job.pullRequestNumber && job.pullRequestUrl,
+      )
+      .map((job) => ({
+        id: job._id,
+        repository: job.repository ?? "",
+        pullRequestNumber: job.pullRequestNumber ?? 0,
+        pullRequestTitle: job.title,
+        pullRequestUrl: job.pullRequestUrl ?? "",
+        headSha: job.headSha ?? "",
+        baseSha: job.baseSha ?? "",
+        author: job.author ?? "",
+        draft: job.draft ?? false,
+        eventType: job.eventType,
+        status: job.status,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+      }));
+  },
+});
+
+export const getReviewJob = queryGeneric({
+  args: {
+    reviewJobId: v.id("reviewJobs"),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      id: v.id("reviewJobs"),
+      provider: v.optional(v.literal("github")),
+      repository: v.optional(v.string()),
+      pullRequestNumber: v.optional(v.number()),
+      pullRequestTitle: v.string(),
+      pullRequestUrl: v.optional(v.string()),
+      headSha: v.optional(v.string()),
+      baseSha: v.optional(v.string()),
+      deliveryId: v.optional(v.string()),
+      eventType: v.optional(v.string()),
+      idempotencyKey: v.optional(v.string()),
+      author: v.optional(v.string()),
+      draft: v.optional(v.boolean()),
+      status: v.string(),
+      createdAt: v.string(),
+      updatedAt: v.string(),
+      execution: v.optional(v.object({
+        startedAt: v.optional(v.string()),
+        finishedAt: v.optional(v.string()),
+        durationMs: v.optional(v.number()),
+        error: v.optional(v.string()),
+        retryCount: v.optional(v.number()),
+      })),
+      publication: v.optional(v.object({
+        summaryCommentUrl: v.optional(v.string()),
+        summaryCommentId: v.optional(v.number()),
+        publishedAt: v.optional(v.string()),
+        inlineCommentUrls: v.array(v.string()),
+      })),
+      comments: v.array(
+        v.object({
+          id: v.id("reviewComments"),
+          body: v.string(),
+          visibility: reviewCommentVisibility,
+          createdAt: v.string(),
+        }),
+      ),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const job = await ctx.db.get(args.reviewJobId);
+    if (!job) {
+      return null;
+    }
+
+    const comments = await ctx.db
+      .query("reviewComments")
+      .withIndex("by_review_job", (query) => query.eq("reviewJobId", args.reviewJobId))
+      .collect();
+
+    return {
+      id: job._id,
+      provider: job.provider,
+      repository: job.repository,
+      pullRequestNumber: job.pullRequestNumber,
+      pullRequestTitle: job.title,
+      pullRequestUrl: job.pullRequestUrl,
+      headSha: job.headSha,
+      baseSha: job.baseSha,
+      deliveryId: job.deliveryId,
+      eventType: job.eventType,
+      idempotencyKey: job.idempotencyKey,
+      author: job.author,
+      draft: job.draft,
+      status: job.status,
+      createdAt: job.createdAt,
+      updatedAt: job.updatedAt,
+      execution: job.execution,
+      publication: job.publication ?? {
+        inlineCommentUrls: [],
+      },
+      comments: comments.map((comment) => ({
+        id: comment._id,
+        body: comment.body,
+        visibility: comment.visibility,
+        createdAt: comment.createdAt,
+      })),
+    };
+  },
+});
+
+export const replaceReviewJobState = mutationGeneric({
+  args: {
+    reviewJobId: v.id("reviewJobs"),
+    job: v.object({
+      status: v.optional(v.string()),
+      title: v.optional(v.string()),
+      updatedAt: v.optional(v.string()),
+      execution: v.optional(v.object({
+        startedAt: v.optional(v.string()),
+        finishedAt: v.optional(v.string()),
+        durationMs: v.optional(v.number()),
+        error: v.optional(v.string()),
+        retryCount: v.optional(v.number()),
+      })),
+      publication: v.optional(v.object({
+        summaryCommentUrl: v.optional(v.string()),
+        summaryCommentId: v.optional(v.number()),
+        publishedAt: v.optional(v.string()),
+        inlineCommentUrls: v.array(v.string()),
+      })),
+    }),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const patch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(args.job)) {
+      if (value !== undefined) {
+        patch[key] = value;
+      }
+    }
+
+    await ctx.db.patch(args.reviewJobId, patch);
+    return null;
+  },
+});
+
+export const resetReviewStateForTests = mutationGeneric({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requireAuth(ctx);
+
+    const tableNames = [
+      "reviewComments",
+      "reviewFindings",
+      "reviewJobs",
+      "reviewPolicies",
+      "reviewProviders",
+      "reviewRuns",
+      "reviewerIdentities",
+      "workspaces",
+    ] as const;
+
+    for (const tableName of tableNames) {
+      const docs = await ctx.db.query(tableName).collect();
+      for (const doc of docs) {
+        await ctx.db.delete(doc._id);
+      }
+    }
+
+    return null;
+  },
+});
+
+export const publishReviewResult = mutationGeneric({
+  args: {
+    reviewJobId: v.id("reviewJobs"),
+    summaryBody: v.string(),
+    inlineComments: v.array(
+      v.object({
+        path: v.string(),
+        line: v.number(),
+        side: v.union(v.literal("LEFT"), v.literal("RIGHT")),
+        body: v.string(),
+      }),
+    ),
+  },
+  returns: v.object({
+    reviewJobId: v.id("reviewJobs"),
+    commentCount: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
+    const job = await ctx.db.get(args.reviewJobId);
+    if (!job) {
+      throw new Error("Review job not found.");
+    }
+
+    const run = await ctx.db
+      .query("reviewRuns")
+      .withIndex("by_review_job", (query) => query.eq("reviewJobId", args.reviewJobId))
+      .order("desc")
+      .first();
+
+    if (!run) {
+      throw new Error("Review run not found.");
+    }
+
+    const updatedAt = new Date().toISOString();
+
+    await ctx.db.patch(args.reviewJobId, {
+      status: "completed",
+      updatedAt,
+    });
+
+    await ctx.db.patch(run._id, {
+      status: "passed",
+      summary: args.summaryBody,
+      finishedAt: updatedAt,
+      updatedAt,
+    });
+
+    await ctx.db.insert("reviewComments", {
+      workspaceId: job.workspaceId,
+      reviewJobId: args.reviewJobId,
+      reviewRunId: run._id,
+      body: args.summaryBody,
+      visibility: "public",
+      createdAt: updatedAt,
+      updatedAt,
+    });
+
+    for (const [index, comment] of args.inlineComments.entries()) {
+      const findingId = await ctx.db.insert("reviewFindings", {
+        workspaceId: job.workspaceId,
+        reviewJobId: args.reviewJobId,
+        reviewRunId: run._id,
+        title: `Inline review comment ${index + 1}`,
+        detail: comment.body,
+        severity: "medium",
+        status: "open",
+        filePath: comment.path,
+        lineStart: comment.line,
+        lineEnd: comment.line,
+        recommendation: comment.body,
+        fingerprint: `${comment.path}:${comment.line}:${index}`,
+        createdAt: updatedAt,
+        updatedAt,
+      });
+
+      await ctx.db.insert("reviewComments", {
+        workspaceId: job.workspaceId,
+        reviewJobId: args.reviewJobId,
+        reviewRunId: run._id,
+        reviewFindingId: findingId,
+        body: comment.body,
+        visibility: "public",
+        createdAt: updatedAt,
+        updatedAt,
+      });
+    }
+
+    return {
+      reviewJobId: args.reviewJobId,
+      commentCount: args.inlineComments.length + 1,
+    };
+  },
+});

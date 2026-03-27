@@ -2,7 +2,10 @@ import { createLogger, getCorrelationId } from "@lifeos/logging";
 import { Hono } from "hono";
 import type { AppVariables } from "./context";
 import { authRoute } from "./routes/auth";
+import { githubWebhooksRoute } from "./routes/github-webhooks";
 import { healthRoute } from "./routes/health";
+import { providersRoute } from "./routes/providers";
+import { reviewsRoute } from "./routes/reviews";
 import { webhooksRoute } from "./routes/webhooks";
 
 export function createApp() {
@@ -30,6 +33,9 @@ export function createApp() {
   app.route("/auth", authRoute);
   app.route("/health", healthRoute);
   app.route("/webhooks", webhooksRoute);
+  app.route("/webhooks", githubWebhooksRoute);
+  app.route("/providers", providersRoute);
+  app.route("/reviews", reviewsRoute);
 
   return app;
 }

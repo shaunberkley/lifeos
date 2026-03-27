@@ -7,7 +7,7 @@ const fallbackLogger = createLogger({
   sink: () => {},
 });
 
-export const webhooksRoute = new Hono<{ Variables: AppVariables }>().all("*", (c) => {
+export const webhooksRoute = new Hono<{ Variables: AppVariables }>().all("/", (c) => {
   const error = new NotImplementedAppError(
     "Webhook ingress is disabled until signed event handling is implemented.",
     { surface: "webhooks" },

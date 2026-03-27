@@ -16,6 +16,7 @@
     "dev:web": "varlock run -- pnpm --filter @lifeos/web dev",
     "lint": "turbo run lint",
     "format": "biome check --write .",
+    "pr-review": "pnpm exec tsx packages/review-engine/src/cli.ts",
     "prepare": "git config --local core.hooksPath .husky",
     "secrets:check": "varlock load",
     "typecheck": "pnpm typecheck:convex && turbo run typecheck",
@@ -32,6 +33,7 @@
     "@vitest/coverage-v8": "4.1.1",
     "convex": "1.34.0",
     "turbo": "2.5.0",
+    "tsx": "4.20.5",
     "typescript": "5.9.2",
     "varlock": "0.6.3",
     "vitest": "4.1.1"

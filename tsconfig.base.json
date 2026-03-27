@@ -2,7 +2,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@lifeos/ai-runtime": ["packages/ai-runtime/src/index.ts"],
+      "@lifeos/domain": ["packages/domain/src/index.ts"],
       "@lifeos/logging": ["packages/logging/src/index.ts"],
+      "@lifeos/review-engine": ["packages/review-engine/src/index.ts"],
       "@lifeos/security": ["packages/security/src/index.ts"],
       "@lifeos/testing": ["packages/testing/src/index.ts"]
     },
