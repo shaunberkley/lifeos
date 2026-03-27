@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { getAuthRuntime } from "../auth/runtime";
 import type { GitHubProviderStatus, GitHubReviewJob, GitHubReviewJobDraft } from "./types";
 
 type ReviewJobIndex = {
@@ -69,10 +70,22 @@ async function callConvex<T>(
     throw new Error("Missing CONVEX_URL for durable review state.");
   }
 
+  const { auth } = await getAuthRuntime();
+  const { token } = await auth.api.signJWT({
+    body: {
+      payload: {
+        sub: "lifeos-reviewer-service",
+      },
+    },
+  });
+
   const endpoint = `${url}/api/${kind}`;
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       path: functionName,
       args: args ?? {},

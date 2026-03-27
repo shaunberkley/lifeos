@@ -1,5 +1,8 @@
 import { AppError, createLogger, toErrorResponse } from "@lifeos/logging";
 import { Hono } from "hono";
+import { type JSONWebKeySet, createLocalJWKSet, jwtVerify } from "jose";
+import { getAuthEnvironment } from "../auth/config";
+import { getAuthRuntime } from "../auth/runtime";
 import type { AppVariables } from "../context";
 import { executeReviewJob } from "../github/executor";
 import { createReviewOrchestrator } from "../github/orchestrator";
@@ -11,7 +14,46 @@ const fallbackLogger = createLogger({
 });
 
 function toRouteStatusCode(error: unknown) {
-  return error instanceof AppError ? (error.status as 400 | 403 | 404 | 500 | 501 | 503) : 500;
+  return error instanceof AppError
+    ? (error.status as 400 | 401 | 403 | 404 | 500 | 501 | 503)
+    : 500;
+}
+
+function createUnauthorizedError() {
+  return new AppError({
+    code: "unauthorized",
+    message: "Reviewer control-plane access requires authentication.",
+    status: 401,
+    details: {
+      surface: "review-control-plane",
+    },
+  });
+}
+
+async function requireControlPlaneAuth(c: {
+  readonly req: { header: (name: string) => string | undefined };
+}) {
+  const authorization = c.req.header("authorization")?.trim();
+
+  if (!authorization?.startsWith("Bearer ")) {
+    throw createUnauthorizedError();
+  }
+
+  const token = authorization.slice("Bearer ".length).trim();
+  if (!token) {
+    throw createUnauthorizedError();
+  }
+
+  const { auth } = await getAuthRuntime();
+  const jwks = await auth.api.getJwks({
+    headers: new Headers(),
+  });
+  const environment = getAuthEnvironment();
+
+  await jwtVerify(token, createLocalJWKSet(jwks as JSONWebKeySet), {
+    issuer: environment.issuer,
+    audience: environment.applicationId,
+  });
 }
 
 function createValidationError(message: string, details: Record<string, unknown>) {
@@ -121,6 +163,7 @@ export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
     const logger = c.get("logger") ?? fallbackLogger;
 
     try {
+      await requireControlPlaneAuth(c);
       const orchestrator = createReviewOrchestrator();
       return c.json({
         ok: true,
@@ -140,6 +183,7 @@ export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
     const logger = c.get("logger") ?? fallbackLogger;
 
     try {
+      await requireControlPlaneAuth(c);
       const orchestrator = createReviewOrchestrator();
       const review = await orchestrator.getReviewJob(c.req.param("reviewId"));
 
@@ -167,6 +211,7 @@ export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
     const logger = c.get("logger") ?? fallbackLogger;
 
     try {
+      await requireControlPlaneAuth(c);
       const orchestrator = createReviewOrchestrator();
       const reviewId = c.req.param("reviewId");
       let body: unknown;
@@ -201,6 +246,7 @@ export const reviewsRoute = new Hono<{ Variables: AppVariables }>()
     const logger = c.get("logger") ?? fallbackLogger;
 
     try {
+      await requireControlPlaneAuth(c);
       const reviewId = c.req.param("reviewId");
       const result = await executeReviewJob(reviewId);
       const orchestrator = createReviewOrchestrator();

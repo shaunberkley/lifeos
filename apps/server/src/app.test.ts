@@ -5,21 +5,40 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createApp } from "./app";
 import { AUTH_JWKS_PATH } from "./auth/config";
-import { resetAuthRuntimeForTests } from "./auth/runtime";
+import { getAuthRuntime, resetAuthRuntimeForTests } from "./auth/runtime";
 import { resetReviewStateForTests } from "./github/store";
+
+async function withControlPlaneEnvironment() {
+  process.env.AUTH_ISSUER = "http://lifeos.test";
+  process.env.CONVEX_APPLICATION_ID = "lifeos-dev";
+  process.env.BETTER_AUTH_SECRET = "test-secret-for-lifeos-app";
+  process.env.WEB_ORIGIN = "http://localhost:1337";
+  process.env.AUTH_DATABASE_PATH = path.join(
+    os.tmpdir(),
+    `lifeos-auth-${crypto.randomUUID()}.sqlite`,
+  );
+  await resetAuthRuntimeForTests();
+  return process.env.AUTH_DATABASE_PATH;
+}
+
+async function createControlPlaneToken() {
+  const { auth } = await getAuthRuntime();
+  const jwt = await auth.api.signJWT({
+    body: {
+      payload: {
+        sub: "lifeos-control-plane",
+      },
+    },
+  });
+
+  return jwt.token;
+}
 
 describe("@lifeos/server app", () => {
   it("mounts auth JWKS, keeps webhooks fail closed, and keeps health available", async () => {
-    resetReviewStateForTests();
-    process.env.AUTH_ISSUER = "http://lifeos.test";
-    process.env.CONVEX_APPLICATION_ID = "lifeos-dev";
-    process.env.BETTER_AUTH_SECRET = "test-secret-for-lifeos-app";
-    process.env.WEB_ORIGIN = "http://localhost:1337";
-    process.env.AUTH_DATABASE_PATH = path.join(
-      os.tmpdir(),
-      `lifeos-auth-${crypto.randomUUID()}.sqlite`,
-    );
-    await resetAuthRuntimeForTests();
+    await resetReviewStateForTests();
+    const databasePath = await withControlPlaneEnvironment();
+    const controlPlaneToken = await createControlPlaneToken();
 
     const app = createApp();
 
@@ -47,7 +66,18 @@ describe("@lifeos/server app", () => {
       correlationId: expect.any(String),
     });
 
-    const providersResponse = await app.request("/providers");
+    const providersDeniedResponse = await app.request("/providers");
+    expect(providersDeniedResponse.status).toBe(401);
+    await expect(providersDeniedResponse.json()).resolves.toMatchObject({
+      ok: false,
+      error: "unauthorized",
+    });
+
+    const providersResponse = await app.request("/providers", {
+      headers: {
+        authorization: `Bearer ${controlPlaneToken}`,
+      },
+    });
     expect(providersResponse.status).toBe(200);
     await expect(providersResponse.json()).resolves.toMatchObject({
       ok: true,
@@ -63,11 +93,48 @@ describe("@lifeos/server app", () => {
       ]),
     });
 
-    const reviewsResponse = await app.request("/reviews");
+    const reviewsDeniedResponse = await app.request("/reviews");
+    expect(reviewsDeniedResponse.status).toBe(401);
+    await expect(reviewsDeniedResponse.json()).resolves.toMatchObject({
+      ok: false,
+      error: "unauthorized",
+    });
+
+    const reviewsResponse = await app.request("/reviews", {
+      headers: {
+        authorization: `Bearer ${controlPlaneToken}`,
+      },
+    });
     expect(reviewsResponse.status).toBe(200);
     await expect(reviewsResponse.json()).resolves.toMatchObject({
       ok: true,
       reviews: [],
+    });
+
+    const reviewRunDeniedResponse = await app.request("/reviews/missing-review/run", {
+      method: "POST",
+    });
+    expect(reviewRunDeniedResponse.status).toBe(401);
+    await expect(reviewRunDeniedResponse.json()).resolves.toMatchObject({
+      ok: false,
+      error: "unauthorized",
+    });
+
+    const reviewPublishDeniedResponse = await app.request("/reviews/missing-review/publish", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        summaryComment: {
+          body: "Denied summary comment body",
+        },
+      }),
+    });
+    expect(reviewPublishDeniedResponse.status).toBe(401);
+    await expect(reviewPublishDeniedResponse.json()).resolves.toMatchObject({
+      ok: false,
+      error: "unauthorized",
     });
 
     process.env.GITHUB_WEBHOOK_SECRET = "app-test-webhook-secret";
@@ -131,11 +198,15 @@ describe("@lifeos/server app", () => {
       action: "closed",
     });
 
-    const databasePath = process.env.AUTH_DATABASE_PATH;
     await resetAuthRuntimeForTests();
-    resetReviewStateForTests();
+    await resetReviewStateForTests();
     process.env.GITHUB_WEBHOOK_SECRET = undefined;
     process.env.GITHUB_REPOSITORY = undefined;
+    process.env.AUTH_ISSUER = undefined;
+    process.env.CONVEX_APPLICATION_ID = undefined;
+    process.env.BETTER_AUTH_SECRET = undefined;
+    process.env.WEB_ORIGIN = undefined;
+    process.env.AUTH_DATABASE_PATH = undefined;
     if (databasePath) {
       await fs.rm(databasePath, { force: true });
     }
